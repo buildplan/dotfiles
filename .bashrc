@@ -23,6 +23,8 @@ PROMPT_COMMAND="history -a; history -n"
 shopt -s histverify
 # Add timestamp to history entries for audit trail.
 HISTTIMEFORMAT="%F %T "
+# Ignore common commands from history to reduce clutter.
+HISTIGNORE="ls:ll:la:l:cd:pwd:exit:clear:c:history:h"
 
 # --- General Shell Behavior & Options ---
 # Check the window size after each command and update LINES and COLUMNS.
@@ -34,8 +36,24 @@ shopt -s autocd 2>/dev/null
 # Autocorrect minor spelling errors in directory names (Bash 4.0+).
 shopt -s cdspell 2>/dev/null
 shopt -s dirspell 2>/dev/null
+# Correct multi-line command editing.
+shopt -s cmdhist 2>/dev/null
+# Case-insensitive globbing for pathname expansion.
+shopt -s nocaseglob 2>/dev/null
 # Make `less` more friendly for non-text input files.
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# --- Better Less Configuration ---
+# Make less more friendly - X prevents screen clear, F quits if one screen, R shows colors.
+export LESS='-R -F -X -i -M -w'
+# Colored man pages using less.
+export LESS_TERMCAP_mb=$'\e[1;31m'     # begin bold
+export LESS_TERMCAP_md=$'\e[1;36m'     # begin blink
+export LESS_TERMCAP_me=$'\e[0m'        # reset bold/blink
+export LESS_TERMCAP_so=$'\e[01;44;33m' # begin reverse video
+export LESS_TERMCAP_se=$'\e[0m'        # reset reverse video
+export LESS_TERMCAP_us=$'\e[1;32m'     # begin underline
+export LESS_TERMCAP_ue=$'\e[0m'        # reset underline
 
 # --- Terminal & SSH Compatibility Fixes ---
 # Handle Kitty terminal over SSH - fallback to xterm-256color if terminfo unavailable.
@@ -103,10 +121,26 @@ else
     export VISUAL=nano
 fi
 
+# --- Additional Environment Variables ---
+# Set default pager.
+export PAGER=less
+# Prevent Ctrl+S from freezing the terminal.
+stty -ixon 2>/dev/null
+
 # --- Useful Functions ---
 # Create a directory and change into it.
 mkcd() {
     mkdir -p "$1" && cd "$1"
+}
+
+# Create a backup of a file with timestamp.
+backup() {
+    if [ -f "$1" ]; then
+        cp "$1" "$1.backup-$(date +%Y%m%d-%H%M%S)"
+        echo "Backup created: $1.backup-$(date +%Y%m%d-%H%M%S)"
+    else
+        echo "'$1' is not a valid file"
+    fi
 }
 
 # Extract any archive file with a single command.
@@ -149,6 +183,54 @@ ff() {
     find . -type f -iname "*$1*" 2>/dev/null
 }
 
+# Find directories by name in current directory tree.
+fd() {
+    find . -type d -iname "*$1*" 2>/dev/null
+}
+
+# Search for text in files recursively.
+ftext() {
+    grep -rnw . -e "$1" 2>/dev/null
+}
+
+# Create a tarball of a directory.
+targz() {
+    if [ -d "$1" ]; then
+        tar czf "${1%%/}.tar.gz" "${1%%/}"
+        echo "Created ${1%%/}.tar.gz"
+    else
+        echo "'$1' is not a valid directory"
+    fi
+}
+
+# Show disk usage of current directory, sorted by size.
+duh() {
+    du -h --max-depth=1 "${1:-.}" | sort -hr
+}
+
+# Get the size of a file or directory.
+sizeof() {
+    du -sh "$1" 2>/dev/null
+}
+
+# Show most used commands from history.
+histop() {
+    history | awk '{CMD[$2]++;count++;}END { for (a in CMD)print CMD[a] " " CMD[a]/count*100 "% " a;}' | grep -v "./" | column -c3 -s " " -t | sort -nr | nl | head -n20
+}
+
+# Quick server info display.
+sysinfo() {
+    echo -e "\n${CYAN}=== System Information ===${NC}"
+    echo -e "${GREEN}Hostname:${NC} $(hostname)"
+    echo -e "${GREEN}OS:${NC} $(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2)"
+    echo -e "${GREEN}Kernel:${NC} $(uname -r)"
+    echo -e "${GREEN}Uptime:${NC} $(uptime -p 2>/dev/null || uptime)"
+    echo -e "${GREEN}CPU:${NC} $(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs)"
+    echo -e "${GREEN}Memory:${NC} $(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
+    echo -e "${GREEN}Disk:${NC} $(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
+    echo ""
+}
+
 # --- Aliases ---
 # Enable color support for common commands.
 if [ -x /usr/bin/dircolors ]; then
@@ -160,6 +242,7 @@ if [ -x /usr/bin/dircolors ]; then
     alias fgrep='fgrep --color=auto'
     alias egrep='egrep --color=auto'
     alias diff='diff --color=auto'
+    alias ip='ip --color=auto'
 fi
 
 # Standard ls aliases with human-readable sizes.
@@ -182,9 +265,16 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
 alias -- -='cd -'        # Go to previous directory
+alias ~='cd ~'
 alias h='history'
 alias c='clear'
-alias reload='source ~/.bashrc'
+alias cls='clear'
+alias reload='source ~/.bashrc && echo "Bashrc reloaded!"'
+alias path='echo -e ${PATH//:/\\n}'  # Print PATH on separate lines
+
+# Enhanced directory listing.
+alias lsd='ls -d */'     # List only directories
+alias lsf='ls -p | grep -v /'  # List only files
 
 # System resource aliases.
 alias df='df -h'
@@ -196,10 +286,55 @@ alias listening='ss -tlnp'
 alias meminfo='free -h -l -t'
 alias psmem='ps auxf | sort -nr -k 4 | head -10'
 alias pscpu='ps auxf | sort -nr -k 3 | head -10'
+alias top10='ps aux --sort=-%mem | head -n 11'
 
 # Quick network info.
 alias myip='curl -s ifconfig.me'
 alias localip='ip -4 addr show | grep -oP "(?<=inet\s)\d+(\.\d+){3}"'
+alias netstat='ss'
+alias ping='ping -c 5'
+alias fastping='ping -c 100 -i 0.2'
+
+# Date and time helpers.
+alias now='date +"%Y-%m-%d %H:%M:%S"'
+alias nowdate='date +"%Y-%m-%d"'
+alias timestamp='date +%s'
+
+# File operations.
+alias count='find . -type f | wc -l'  # Count files in current directory
+alias cpv='rsync -ah --info=progress2'  # Copy with progress
+alias wget='wget -c'  # Resume wget by default
+
+# Git shortcuts (if git is available).
+if command -v git &>/dev/null; then
+    alias gs='git status'
+    alias ga='git add'
+    alias gc='git commit'
+    alias gp='git push'
+    alias gl='git log --oneline --graph --decorate'
+    alias gd='git diff'
+fi
+
+# Docker shortcuts (if docker is available).
+if command -v docker &>/dev/null; then
+    alias dps='docker ps'
+    alias dpsa='docker ps -a'
+    alias di='docker images'
+    alias dex='docker exec -it'
+    alias dlog='docker logs -f'
+    alias dstop='docker stop $(docker ps -q)'
+    alias dclean='docker system prune -af'
+fi
+
+# Systemd shortcuts.
+if command -v systemctl &>/dev/null; then
+    alias sysstart='sudo systemctl start'
+    alias sysstop='sudo systemctl stop'
+    alias sysrestart='sudo systemctl restart'
+    alias sysstatus='sudo systemctl status'
+    alias sysenable='sudo systemctl enable'
+    alias sysdisable='sudo systemctl disable'
+fi
 
 # Apt aliases for Debian/Ubuntu (only if apt is available).
 if command -v apt &>/dev/null; then
@@ -208,6 +343,7 @@ if command -v apt &>/dev/null; then
     alias aptrm='sudo apt remove'
     alias aptsearch='apt search'
     alias aptshow='apt show'
+    alias aptclean='sudo apt autoremove && sudo apt autoclean'
 fi
 
 # --- PATH Configuration ---
@@ -240,6 +376,13 @@ fi
 # Source local machine-specific settings that shouldn't be in version control.
 if [ -f ~/.bashrc.local ]; then
     . ~/.bashrc.local
+fi
+
+# --- Welcome Message (Optional - comment out if not desired) ---
+# Show system info on login for SSH sessions.
+if [ -n "$SSH_CONNECTION" ]; then
+    echo -e "\n${GREEN}Welcome to $(hostname)${NC}"
+    echo -e "${BLUE}Last login: $(last -1 -R $USER | head -n 1 | awk '{print $4, $5, $6, $7}')${NC}\n"
 fi
 
 # --- Performance Note ---
