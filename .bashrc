@@ -9,33 +9,29 @@ case $- in
       *) return;;
 esac
 
-# --- Performance: Only load if interactive ---
-# Prevent sourcing in non-interactive scripts
-[[ $- != *i* ]] && return
-
 # --- History Control ---
 # Don't put duplicate lines or lines starting with space in the history.
 HISTCONTROL=ignoreboth:erasedups
 # Append to the history file, don't overwrite it.
 shopt -s histappend
-# Set history length with larger values for better recall.
+# Set history length with reasonable values for server use.
 HISTSIZE=10000
 HISTFILESIZE=20000
-# Save history immediately after each command and reload it.
+# Save history immediately and reload from other sessions.
 PROMPT_COMMAND="history -a; history -n"
 # Allow editing of commands recalled from history.
 shopt -s histverify
-# Add timestamp to history entries.
+# Add timestamp to history entries for audit trail.
 HISTTIMEFORMAT="%F %T "
 
 # --- General Shell Behavior & Options ---
 # Check the window size after each command and update LINES and COLUMNS.
 shopt -s checkwinsize
-# Allow using '**' for recursive globbing (e.g., ls **/*.log).
+# Allow using '**' for recursive globbing (Bash 4.0+, suppress errors on older versions).
 shopt -s globstar 2>/dev/null
-# Allow changing to a directory by just typing its name.
+# Allow changing to a directory by just typing its name (Bash 4.0+).
 shopt -s autocd 2>/dev/null
-# Autocorrect minor spelling errors in directory names.
+# Autocorrect minor spelling errors in directory names (Bash 4.0+).
 shopt -s cdspell 2>/dev/null
 shopt -s dirspell 2>/dev/null
 # Make `less` more friendly for non-text input files.
@@ -61,25 +57,24 @@ case "$TERM" in
         ;;
 esac
 
-# --- Locale and Language Settings ---
-# Ensure UTF-8 locale for proper character display.
-export LC_ALL=en_US.UTF-8 2>/dev/null || export LC_ALL=C.UTF-8 2>/dev/null
-export LANG=en_US.UTF-8 2>/dev/null || export LANG=C.UTF-8 2>/dev/null
-
 # --- Prompt Configuration ---
+# Set variable identifying the chroot you work in (used in the prompt below).
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
 # Set a colored prompt only if the terminal has color capability.
 case "$TERM" in
     xterm-color|*-256color|xterm-kitty|alacritty|wezterm) color_prompt=yes;;
 esac
 
-# Force color prompt support check.
+# Force color prompt support check using tput.
 if [ -z "${color_prompt}" ] && [ -x /usr/bin/tput ] && tput setaf 1 &>/dev/null; then
     color_prompt=yes
 fi
 
 if [ "$color_prompt" = yes ]; then
-    # Green: user@host, Blue: directory, White: prompt symbol.
-    # Show exit status if non-zero in red.
+    # Green: user@host, Blue: directory, Red: error indicator, White: prompt symbol.
     export PS1='\[\e[32m\]\u@\h\[\e[00m\]:\[\e[34m\]\w\[\e[00m\]$([ $? != 0 ] && echo "\[\e[31m\] ✗\[\e[00m\]")\$ '
 else
     export PS1='\u@\h:\w\$ '
@@ -167,13 +162,13 @@ if [ -x /usr/bin/dircolors ]; then
     alias diff='diff --color=auto'
 fi
 
-# Standard ls aliases.
+# Standard ls aliases with human-readable sizes.
 alias ll='ls -alFh'
 alias la='ls -A'
 alias l='ls -CF'
-alias lt='ls -alFht'  # Sort by time
-alias ltr='ls -alFhtr'  # Sort by time, reversed
-alias lS='ls -alFhS'  # Sort by size
+alias lt='ls -alFht'     # Sort by modification time, newest first
+alias ltr='ls -alFhtr'   # Sort by modification time, oldest first
+alias lS='ls -alFhS'     # Sort by size, largest first
 
 # Safety aliases to prompt before overwriting.
 alias rm='rm -i'
@@ -186,9 +181,10 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
-alias -- -='cd -'  # Go to previous directory
+alias -- -='cd -'        # Go to previous directory
 alias h='history'
 alias c='clear'
+alias reload='source ~/.bashrc'
 
 # System resource aliases.
 alias df='df -h'
@@ -201,9 +197,9 @@ alias meminfo='free -h -l -t'
 alias psmem='ps auxf | sort -nr -k 4 | head -10'
 alias pscpu='ps auxf | sort -nr -k 3 | head -10'
 
-# Quick system info.
+# Quick network info.
 alias myip='curl -s ifconfig.me'
-alias sysinfo='uname -a && cat /etc/os-release'
+alias localip='ip -4 addr show | grep -oP "(?<=inet\s)\d+(\.\d+){3}"'
 
 # Apt aliases for Debian/Ubuntu (only if apt is available).
 if command -v apt &>/dev/null; then
@@ -211,33 +207,19 @@ if command -v apt &>/dev/null; then
     alias aptin='sudo apt install'
     alias aptrm='sudo apt remove'
     alias aptsearch='apt search'
+    alias aptshow='apt show'
 fi
-
-# Reload .bashrc.
-alias reload='source ~/.bashrc'
 
 # --- PATH Configuration ---
 # Add user's local bin directories to PATH if they exist.
 [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
 [ -d "$HOME/bin" ] && export PATH="$HOME/bin:$PATH"
 
-# --- SSH Agent Management (optional, comment out if not needed) ---
-# Only start ssh-agent if not already running and we're in an interactive SSH session.
-# if [[ -z "$SSH_AUTH_SOCK" ]] && [[ -n "$SSH_CONNECTION" ]]; then
-#     eval "$(ssh-agent -s)" &>/dev/null
-# fi
-
 # --- Server-Specific Configuration ---
 # Load hostname-specific configurations if they exist.
 # This allows per-server customization without modifying the main bashrc.
-if [[ -f ~/.bashrc.$(hostname -s) ]]; then
-    source ~/.bashrc.$(hostname -s)
-fi
-
-# Load domain-specific configurations (useful for server groups).
-# e.g., ~/.bashrc.eagle for all eagle*.host.us servers
-if [[ -f ~/.bashrc.${HOSTNAME%%[0-9]*} ]]; then
-    source ~/.bashrc.${HOSTNAME%%[0-9]*}
+if [ -f ~/.bashrc."$(hostname -s)" ]; then
+    source ~/.bashrc."$(hostname -s)"
 fi
 
 # --- Bash Completion & Personal Aliases ---
@@ -260,6 +242,8 @@ if [ -f ~/.bashrc.local ]; then
     . ~/.bashrc.local
 fi
 
-# --- Performance Tip ---
-# If you notice slow startup, comment out unused sections or move
-# expensive operations to separate files that can be sourced on-demand.
+# --- Performance Note ---
+# This configuration is optimized for performance using built-in bash operations
+# and minimizing external command calls. If startup feels slow, check:
+# - ~/.bash_aliases and ~/.bashrc.local for expensive operations
+# - Consider moving rarely-used functions to separate files
