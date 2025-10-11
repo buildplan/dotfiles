@@ -39,7 +39,7 @@ shopt -s dirspell 2>/dev/null
 # Correct multi-line command editing.
 shopt -s cmdhist 2>/dev/null
 # Case-insensitive globbing for pathname expansion.
-shopt -s nocaseglob 2>/dev/null
+# shopt -s nocaseglob 2>/dev/null
 # Make `less` more friendly for non-text input files.
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
 
@@ -322,7 +322,7 @@ if command -v docker &>/dev/null; then
     alias di='docker images'
     alias dex='docker exec -it'
     alias dlog='docker logs -f'
-    alias dstop='docker stop $(docker ps -q)'
+    alias dstop='echo "This will stop all containers. Use: docker stop \$(docker ps -q)"'
     alias dclean='docker system prune -af'
 fi
 
@@ -380,10 +380,10 @@ fi
 
 # --- Welcome message for SSH sessions ---
 # Show system info on login for SSH sessions.
-# Welcome message for SSH sessions.
 if [ -n "$SSH_CONNECTION" ]; then
     printf "\nWelcome to %s\n" "$(hostname)"
-    printf "Last login: %s\n\n" "$(last -1 -R $USER | head -n 1 | awk '{print $4, $5, $6, $7}')"
+    last_login=$(last -1 -R "$USER" 2>/dev/null | head -n 1 | awk '{print $4, $5, $6, $7}')
+    [ -n "$last_login" ] && printf "Last login: %s\n\n" "$last_login"
 fi
 
 
