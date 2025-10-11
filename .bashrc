@@ -220,15 +220,15 @@ histop() {
 
 # Quick server info display.
 sysinfo() {
-    echo -e "\n${CYAN}=== System Information ===${NC}"
-    echo -e "${GREEN}Hostname:${NC} $(hostname)"
-    echo -e "${GREEN}OS:${NC} $(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2)"
-    echo -e "${GREEN}Kernel:${NC} $(uname -r)"
-    echo -e "${GREEN}Uptime:${NC} $(uptime -p 2>/dev/null || uptime)"
-    echo -e "${GREEN}CPU:${NC} $(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs)"
-    echo -e "${GREEN}Memory:${NC} $(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
-    echo -e "${GREEN}Disk:${NC} $(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
-    echo ""
+    printf "\n=== System Information ===\n"
+    printf "Hostname: %s\n" "$(hostname)"
+    printf "OS: %s\n" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2)"
+    printf "Kernel: %s\n" "$(uname -r)"
+    printf "Uptime: %s\n" "$(uptime -p 2>/dev/null || uptime)"
+    printf "CPU: %s\n" "$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs)"
+    printf "Memory: %s\n" "$(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
+    printf "Disk: %s\n" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
+    printf "\n"
 }
 
 # --- Aliases ---
@@ -378,12 +378,14 @@ if [ -f ~/.bashrc.local ]; then
     . ~/.bashrc.local
 fi
 
-# --- Welcome Message (Optional - comment out if not desired) ---
+# --- Welcome message for SSH sessions ---
 # Show system info on login for SSH sessions.
+# Welcome message for SSH sessions.
 if [ -n "$SSH_CONNECTION" ]; then
-    echo -e "\n${GREEN}Welcome to $(hostname)${NC}"
-    echo -e "${BLUE}Last login: $(last -1 -R $USER | head -n 1 | awk '{print $4, $5, $6, $7}')${NC}\n"
+    printf "\nWelcome to %s\n" "$(hostname)"
+    printf "Last login: %s\n\n" "$(last -1 -R $USER | head -n 1 | awk '{print $4, $5, $6, $7}')"
 fi
+
 
 # --- Performance Note ---
 # This configuration is optimized for performance using built-in bash operations
