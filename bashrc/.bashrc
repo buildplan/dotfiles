@@ -135,13 +135,13 @@ esac
 if [ "$color_prompt" = yes ]; then
     PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\[\e[33m\]$(parse_git_branch)\[\e[0m\]\[\e[31m\]${PS1_ERR}\[\e[0m\]\$ '
 else
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\[\e[31m\]${PS1_ERR}\[\e[0m\]\$ '
+    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w${PS1_ERR}\$ '
 fi
 
 # Set the terminal window title to user@host:dir for supported terminals.
 case "$TERM" in
   xterm*|rxvt*|xterm-kitty|alacritty|wezterm)
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w${PS1_ERR}\$ '
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
     ;;
   *)
     ;;
