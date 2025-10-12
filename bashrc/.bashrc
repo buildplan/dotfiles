@@ -116,8 +116,6 @@ else
     export PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
 fi
 
-unset color_prompt
-
 # Set the terminal window title to user@host:dir for supported terminals.
 case "$TERM" in
 xterm*|rxvt*|kitty|alacritty|wezterm)
@@ -667,7 +665,7 @@ if [ -n "$SSH_CONNECTION" ]; then
     sysinfo
 
     # Display previous login information (skip current session)
-    last_login=$(last -1 -R "$USER" 2>/dev/null | sed -n '2p' | awk '{$1=""; print}' | xargs)
+    last_login=$(last -R "$USER" 2>/dev/null | sed -n '2p' | awk '{$1=""; print}' | xargs)
     [ -n "$last_login" ] && printf "Last login: %s\n" "$last_login"
 
     # Show active sessions
