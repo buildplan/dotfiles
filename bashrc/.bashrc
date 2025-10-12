@@ -766,7 +766,7 @@ fi
 # Display all custom functions and aliases with descriptions
 bashhelp() {
     local category="${1:-all}"
-    
+
     case "$category" in
         all|"")
             cat << 'EOF'
@@ -788,7 +788,7 @@ Categories: navigation, files, system, docker, git, network
   .....           Go up four directories
   -               Go to previous directory
   ~               Go to home directory
-  
+
   mkcd <dir>      Create directory and cd into it
   up <n>          Go up N directories (e.g., up 3)
   path            Display PATH variable (one per line)
@@ -804,15 +804,15 @@ Categories: navigation, files, system, docker, git, network
   lS              List by size, largest first
   lsd             List only directories
   lsf             List only files
-  
+
   ff <name>       Find files by name (case-insensitive)
   fd <name>       Find directories by name (case-insensitive)
   ftext <text>    Search for text in files recursively
-  
+
   extract <file>  Extract any archive (tar, zip, 7z, etc.)
   targz <dir>     Create tar.gz of directory
   backup <file>   Create timestamped backup of file
-  
+
   sizeof <path>   Get size of file or directory
   duh [path]      Disk usage sorted by size
   count           Count files in current directory
@@ -823,16 +823,16 @@ Categories: navigation, files, system, docker, git, network
 ═══════════════════════════════════════════════════════════════════
   sysinfo         Display comprehensive system information
   checkupdates    Check for available system updates
-  
+
   psgrep <pat>    Search for process by name
   psmem           Show top 10 processes by memory usage
   pscpu           Show top 10 processes by CPU usage
   top10           Show top 10 memory-consuming processes
-  
+
   ports           Show all listening ports (TCP/UDP)
   listening       Show listening ports with process info
   meminfo         Display detailed memory information
-  
+
   h               Show command history
   histop          Show most used commands
   reload          Reload bashrc configuration
@@ -849,18 +849,18 @@ Docker Commands:
   dn              List networks
   dex <id>        Execute interactive shell in container
   dlog <id>       Follow container logs
-  
+
   dsh <id>        Enter container shell (bash/sh)
   dip [id]        Show container IP addresses
   dsize           Show disk usage by containers
   dbinds [id]     Show bind mounts for containers
   denv <id>       Show environment variables
   dfollow <id>    Follow logs with tail (default 100 lines)
-  
+
   dstats          Container stats snapshot
   dstatsa         Container stats live
   dtop            Container stats formatted table
-  
+
   dprune          Prune system (remove unused data)
   dprunea         Prune all (including images)
   dvprune         Prune unused volumes
@@ -875,7 +875,7 @@ Docker Compose:
   dcps            List compose services
   dcex <srv>      Execute command in service
   dcsh <srv>      Enter service shell (bash/sh)
-  
+
   dcbuild         Build services
   dcbn            Build with no cache
   dcrestart       Restart services
@@ -883,7 +883,7 @@ Docker Compose:
   dcpull          Pull service images
   dcstop          Stop services
   dcstart         Start services
-  
+
   dcstatus        Show service status & resource usage
   dcreload <srv>  Restart service and follow logs
   dcupdate <srv>  Pull, restart service, follow logs
@@ -958,7 +958,7 @@ APT (Debian/Ubuntu):
 
 EOF
             ;;
-            
+
         navigation)
             cat << 'EOF'
 
@@ -970,7 +970,7 @@ EOF
   .....           Go up four directories
   -               Go to previous directory
   ~               Go to home directory
-  
+
   mkcd <dir>      Create directory and cd into it
   up <n>          Go up N directories
   path            Display PATH variable
@@ -982,7 +982,7 @@ Examples:
 
 EOF
             ;;
-            
+
         files)
             cat << 'EOF'
 
@@ -1014,7 +1014,7 @@ Examples:
 
 EOF
             ;;
-            
+
         system)
             cat << 'EOF'
 
@@ -1033,7 +1033,7 @@ Processes:
 Network:
   ports           Listening ports
   listening       Ports with process info
-  
+
 Memory:
   meminfo         Detailed memory info
   free            Free memory (human-readable)
@@ -1049,7 +1049,7 @@ Examples:
 
 EOF
             ;;
-            
+
         docker)
             cat << 'EOF'
 
@@ -1088,7 +1088,7 @@ Examples:
 
 EOF
             ;;
-            
+
         git)
             cat << 'EOF'
 
@@ -1111,7 +1111,7 @@ Examples:
 
 EOF
             ;;
-            
+
         network)
             cat << 'EOF'
 
@@ -1132,7 +1132,7 @@ Examples:
 
 EOF
             ;;
-            
+
         *)
             echo "Unknown category: $category"
             echo "Available categories: navigation, files, system, docker, git, network"
