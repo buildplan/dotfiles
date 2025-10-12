@@ -236,11 +236,9 @@ histop() {
 sysinfo() {
     # --- Self-Contained Color Detection ---
     local color_support=""
-    # Check if the terminal reports color support.
     case "$TERM" in
         xterm-color|*-256color|xterm-kitty|alacritty|wezterm) color_support="yes";;
     esac
-    # A more robust check using tput.
     if [ -z "$color_support" ] && [ -x /usr/bin/tput ] && tput setaf 1 &>/dev/null; then
         color_support="yes"
     fi
@@ -249,14 +247,11 @@ sysinfo() {
     if [ "$color_support" = "yes" ]; then
         local CYAN='\e[1;36m'
         local YELLOW='\e[1;33m'
+        local BOLD_RED='\e[1;31m'
         local BOLD_WHITE='\e[1;37m'
         local RESET='\e[0m'
     else
-        # If no color support, variables are empty.
-        local CYAN=''
-        local YELLOW=''
-        local BOLD_WHITE=''
-        local RESET=''
+        local CYAN=''; local YELLOW=''; local BOLD_RED=''; local BOLD_WHITE=''; local RESET=''
     fi
 
     # --- Header ---
@@ -272,21 +267,25 @@ sysinfo() {
     printf "${CYAN}%-12s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
     printf "${CYAN}%-12s${RESET} %s\n" "Disk:" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
 
-    # --- Conditional Info ---
-    if [ -r /var/lib/update-notifier/updates-available ]; then
+    # --- Conditional Info: Updates and Reboot Status ---
+    # Check for a pending reboot first (high priority).
+    if [ -f /var/run/reboot-required ]; then
+        printf "${CYAN}%-12s${RESET} ${BOLD_RED}REBOOT REQUIRED${RESET}\n" "System:"
+    # If no reboot is needed, check for package updates using the standard file.
+    elif [ -r /var/lib/update-notifier/updates-available ]; then
         updates=$(grep -c "packages can be updated" /var/lib/update-notifier/updates-available)
-        security=$(grep -c "security updates" /var/lib/update-notifier/updates-available)
         if [ "$updates" -gt 0 ]; then
             total=$(cat /var/lib/update-notifier/updates-available | awk '{print $1; exit}')
-            if [ "$security" -gt 0 ]; then
-                sec_total=$(grep "security updates" /var/lib/update-notifier/updates-available | awk '{print $1}')
-                printf "${CYAN}%-12s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$sec_total"
+            security=$(grep "security updates" /var/lib/update-notifier/updates-available | awk '{print $1}')
+            if [ -n "$security" ] && [ "$security" -gt 0 ]; then
+                printf "${CYAN}%-12s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
             else
                 printf "${CYAN}%-12s${RESET} %s packages available\n" "Updates:" "$total"
             fi
         fi
     fi
 
+    # Docker Info
     if command -v docker &>/dev/null; then
         if docker_states=$(timeout 2s docker ps -a --format '{{.State}}' 2>/dev/null); then
             local running=$(echo "$docker_states" | grep -c '^running$')
