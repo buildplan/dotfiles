@@ -138,17 +138,10 @@ else
     PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\[\e[31m\]${PS1_ERR}\[\e[0m\]\$ '
 fi
 
-
-# Ensure __prompt_status runs first in PROMPT_COMMAND without duplication.
-case ";$PROMPT_COMMAND;" in
-  *";__prompt_status;"*) ;;
-  *) PROMPT_COMMAND="__prompt_status; ${PROMPT_COMMAND}";;
-esac
-
 # Set the terminal window title to user@host:dir for supported terminals.
 case "$TERM" in
   xterm*|rxvt*|xterm-kitty|alacritty|wezterm)
-    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w${PS1_ERR}\$ '
     ;;
   *)
     ;;
@@ -324,7 +317,7 @@ sysinfo() {
     if command -v apt-get &>/dev/null; then
         # Method 0: Use apt-check from update-notifier-common if available
         if [ -x /usr/lib/update-notifier/apt-check ]; then
-            IFS=';' read -r total security < <(/usr/lib/update-notifier/apt-check 2>&1)
+            IFS=';' read -r total security < <(/usr/lib/update-notifier/apt-check 2>/dev/null)
             if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
                 if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
                     printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
