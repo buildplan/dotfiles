@@ -733,18 +733,6 @@ if [ -n "$SSH_CONNECTION" ]; then
 fi
 
 # --- Help System ---
-# Preserve Bash's builtin `help` while integrating bashhelp
-unalias help 2>/dev/null
-help() {
-  case "${1:-}" in
-    ""|all|navigation|files|system|docker|git|network)
-      bashhelp "$@"
-      ;;
-    *)
-      builtin help "$@"
-      ;;
-  esac
-}
 # Display all custom functions and aliases with descriptions
 bashhelp() {
     local category="${1:-all}"
@@ -759,7 +747,7 @@ bashhelp() {
 ╚═══════════════════════════════════════════════════════════════════╝
 
 Usage: bashhelp [category]
-Categories: navigation, files, system, docker, git, network, help
+Categories: navigation, files, system, docker, git, network
 
 ═══════════════════════════════════════════════════════════════════
 📁 NAVIGATION & DIRECTORY
@@ -1124,12 +1112,25 @@ EOF
     esac
 }
 
-# Shorter alias for help
+# Preserve Bash's builtin `help` while integrating bashhelp
+# This smart wrapper routes custom help to bashhelp, bash builtins to builtin help
+help() {
+    case "${1:-}" in
+        ""|all|navigation|files|system|docker|git|network)
+            bashhelp "$@"
+            ;;
+        *)
+            command help "$@" 2>/dev/null || builtin help "$@"
+            ;;
+    esac
+}
+
+# Shorter alias for bashhelp (not for help - that's a function now)
 alias bh='bashhelp'
-alias help='bashhelp'
 
 # Quick command list (compact)
 alias commands='compgen -A function -A alias | grep -v "^_" | sort | column'
+
 
 # --- Performance Note ---
 # This configuration is optimized for performance using built-in bash operations
