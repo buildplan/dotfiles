@@ -2,7 +2,7 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 3.1
+#   Version: 3.2
 #   Last Updated: 2025-10-12
 # ===================================================================
 
@@ -477,7 +477,10 @@ alias top10='ps aux --sort=-%mem | head -n 11'
 
 # Quick network info.
 alias myip='curl -s ifconfig.me || curl -s icanhazip.com' # Alternatives: api.ipify.org, icanhazip.co
-alias localip='ip -4 addr | awk \'/inet/ {print $2}\' | cut -d/ -f1'
+# Show local IP address(es), excluding loopback.
+localip() {
+    ip -4 addr | awk '/inet/ {print $2}' | cut -d/ -f1 | grep -v '127.0.0.1'
+}
 alias netstat='ss'
 alias ping='ping -c 5'
 alias fastping='ping -c 100 -i 0.2'
@@ -754,7 +757,7 @@ bashhelp() {
 
 ╔═══════════════════════════════════════════════════════════════════╗
 ║           Universal Bashrc - Quick Reference Guide                ║
-║                        Version 3.1                                ║
+║                        Version 3.2                                ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 Usage: bashhelp [category]
