@@ -2,7 +2,7 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 3.0
+#   Version: 3.1
 #   Last Updated: 2025-10-12
 # ===================================================================
 
@@ -20,9 +20,6 @@ shopt -s histappend
 # Set history length with reasonable values for server use.
 HISTSIZE=10000
 HISTFILESIZE=20000
-# Save history immediately and reload from other sessions.
-# Safely appends to PROMPT_COMMAND to avoid overwriting other scripts' settings.
-PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND; }history -a; history -n"
 # Allow editing of commands recalled from history.
 shopt -s histverify
 # Add timestamp to history entries for audit trail (ISO 8601 format).
@@ -116,20 +113,26 @@ parse_git_branch() {
     return 0  # Always return success to not pollute $?
 }
 
-# Precompute exit status indicator safely via PROMPT_COMMAND.
-__prompt_status() {
-    local rc=$?
+# A single function to handle all pre-prompt tasks
+__bash_prompt_command() {
+    local rc=$? # Capture exit status immediately
+
+    # 1. Set exit status indicator (replaces __prompt_status)
     if (( rc != 0 )); then
         PS1_ERR=" ✗"
     else
         PS1_ERR=""
     fi
+    
+    # 2. Append history from this session (replaces 'history -a')
+    history -a
+    
+    # 3. Reload history from other sessions (replaces 'history -n')
+    history -n
 }
 
-# Ensure __prompt_status runs first without duplication
-if [[ $PROMPT_COMMAND != *__prompt_status* ]]; then
-  PROMPT_COMMAND="__prompt_status${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
-fi
+# Set PROMPT_COMMAND to this single function
+PROMPT_COMMAND=__bash_prompt_command
 
 # Prompt: wrap only the color codes with \[ \], leave the text in ${PS1_ERR}
 # shellcheck disable=SC2016
@@ -204,8 +207,10 @@ extract() {
             *.Z)         uncompress "$1"   ;;
             *.7z)        7z x "$1"         ;;
             *.deb)       ar x "$1"         ;;
-            *.tar.zst)   tar --zstd -xf "$1" ;;
-            *)           echo "'$1' cannot be extracted via extract()" ;;
+            *.tar.zst)
+                if command -v zstd &>/dev/null; then; zstd -dc "$1" | tar xf -;
+                else; tar --zstd -xf "$1"; fi ;;
+            *)          echo "'$1' cannot be extracted via extract()" ;;
         esac
     else
         echo "'$1' is not a valid file" >&2
@@ -362,8 +367,8 @@ sysinfo() {
     fi
 
     # --- Docker Info ---
-    if command -v docker &>/dev/null; then
-        if docker_states=$(timeout 2s docker ps -a --format '{{.State}}' 2>/dev/null); then
+    if command -v docker &>/dev/null && docker info &>/dev/null; then
+        if docker_states=$(docker ps -a --format '{{.State}}' 2>/dev/null); then
             local running total
             running=$(echo "$docker_states" | grep -c '^running$' || echo "0")
             total=$(echo "$docker_states" | wc -l)
@@ -450,7 +455,11 @@ psgrep() {
         echo "Usage: psgrep <pattern>" >&2
         return 1
     fi
-    ps aux | grep -i "$@" | grep -v grep
+    # Build a pattern like '[n]ginx' to avoid matching the grep process itself
+    local pattern
+    local term="$1"
+    pattern="[${term:0:1}]${term:1}"
+    ps aux | grep -i "$pattern"
 }
 alias ports='ss -tuln'
 alias listening='ss -tlnp'
@@ -460,8 +469,8 @@ alias pscpu='ps auxf | sort -nr -k 3 | head -10'
 alias top10='ps aux --sort=-%mem | head -n 11'
 
 # Quick network info.
-alias myip='curl -s ifconfig.me'
-alias localip='ip -4 addr show | grep -oP "(?<=inet\s)\d+(\.\d+){3}"'
+alias myip='curl -s ifconfig.me || curl -s icanhazip.com' # Alternatives: api.ipify.org, icanhazip.co
+alias localip='ip -4 addr | awk \'/inet/ {print $2}\' | cut -d/ -f1'
 alias netstat='ss'
 alias ping='ping -c 5'
 alias fastping='ping -c 100 -i 0.2'
@@ -743,7 +752,7 @@ bashhelp() {
 
 ╔═══════════════════════════════════════════════════════════════════╗
 ║           Universal Bashrc - Quick Reference Guide                ║
-║                        Version 3.0                                ║
+║                        Version 3.1                                ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 Usage: bashhelp [category]
