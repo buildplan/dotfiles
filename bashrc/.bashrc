@@ -1,7 +1,7 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 2.0
+#   Version: 2.1
 #   Last Updated: 2025-10-12
 # ===================================================================
 
@@ -55,9 +55,9 @@ set -o emacs
 # --- Better Less Configuration ---
 # Make less more friendly - R shows colors, F quits if one screen, X prevents screen clear.
 export LESS='-R -F -X -i -M -w'
-# Colored man pages using less.
-export LESS_TERMCAP_mb=$'\e[1;31m'      # begin bold
-export LESS_TERMCAP_md=$'\e[1;36m'      # begin blink
+# Colored man pages using less (TERMCAP sequences).
+export LESS_TERMCAP_mb=$'\e[1;31m'      # begin blink
+export LESS_TERMCAP_md=$'\e[1;36m'      # begin bold
 export LESS_TERMCAP_me=$'\e[0m'         # reset bold/blink
 export LESS_TERMCAP_so=$'\e[01;44;33m'  # begin reverse video
 export LESS_TERMCAP_se=$'\e[0m'         # reset reverse video
@@ -84,6 +84,12 @@ case "$TERM" in
         ;;
 esac
 
+# Optional: if kitty exists locally, provide a convenience alias for SSH.
+# (No effect on hosts without kitty installed.)
+if command -v kitty &>/dev/null; then
+    alias kssh='kitty +kitten ssh'
+fi
+
 # --- Prompt Configuration ---
 # Set variable identifying the chroot you work in (used in the prompt below).
 if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
@@ -109,19 +115,35 @@ parse_git_branch() {
     return 0  # Always return success to not pollute $?
 }
 
+# Precompute exit status indicator safely via PROMPT_COMMAND.
+__prompt_status() {
+    local rc=$?
+    if (( rc != 0 )); then
+        PS1_STATUS="\[\e[31m\] ✗\[\e[0m\]"
+    else
+        PS1_STATUS=""
+    fi
+}
+
 if [ "$color_prompt" = yes ]; then
     # Green: user@host, Blue: directory, Yellow: git branch, Red: error indicator, White: prompt symbol.
-    export PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[00m\]:\[\e[34m\]\w\[\e[00m\]\[\e[33m\]$(parse_git_branch)\[\e[00m\]$([ $? != 0 ] && echo "\[\e[31m\] ✗\[\e[00m\]")\$ '
+    export PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[00m\]:\[\e[34m\]\w\[\e[00m\]\[\e[33m\]$(parse_git_branch)\[\e[00m\]${PS1_STATUS}\$ '
 else
-    export PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+    export PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w${PS1_STATUS}\$ '
 fi
+
+# Ensure __prompt_status runs first in PROMPT_COMMAND without duplication.
+case ";$PROMPT_COMMAND;" in
+  *";__prompt_status;"*) ;;
+  *) PROMPT_COMMAND="__prompt_status; ${PROMPT_COMMAND}";;
+esac
 
 # Set the terminal window title to user@host:dir for supported terminals.
 case "$TERM" in
-xterm*|rxvt*|kitty|alacritty|wezterm)
+  xterm*|rxvt*|xterm-kitty|alacritty|wezterm)
     PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
     ;;
-*)
+  *)
     ;;
 esac
 
@@ -290,35 +312,42 @@ sysinfo() {
     if [ -f /var/run/reboot-required ]; then
         printf "${CYAN}%-13s${RESET} ${BOLD_RED}⚠ REBOOT REQUIRED${RESET}\n" "System:"
     fi
-    
-    # --- Available Updates (Improved Detection) ---
+
+    # --- Available Updates (Prefer apt-check when present) ---
     if command -v apt-get &>/dev/null; then
-        # Method 1: Try update-notifier file first (fast)
-        if [ -r /var/lib/update-notifier/updates-available ]; then
-            local total=$(grep "packages can be updated" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
-            local security=$(grep "security updates" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
-            
-            if [ -n "$total" ] && [ "$total" -gt 0 ]; then
-                if [ -n "$security" ] && [ "$security" -gt 0 ]; then
+        # Method 0: Use apt-check from update-notifier-common if available
+        if [ -x /usr/lib/update-notifier/apt-check ]; then
+            IFS=';' read -r total security < <(/usr/lib/update-notifier/apt-check 2>&1)
+            if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
+                if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
+                    printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
+                else
+                    printf "${CYAN}%-13s${RESET} %s packages available\n" "Updates:" "$total"
+                fi
+            fi
+        # Method 1: update-notifier drop file (fast)
+        elif [ -r /var/lib/update-notifier/updates-available ]; then
+            local total security
+            total=$(grep "packages can be updated" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
+            security=$(grep "security updates" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
+            if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
+                if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
                     printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
                 else
                     printf "${CYAN}%-13s${RESET} %s packages available\n" "Updates:" "$total"
                 fi
             fi
         else
-            # Method 2: Direct APT check (more reliable but slower)
-            # Only do this check if apt lists are recent (within last 24 hours)
+            # Method 2: apt list fallback (only if lists are recent)
             local apt_lists_age=0
             if [ -d /var/lib/apt/lists ]; then
-                # Suppress permission denied errors from find command
                 apt_lists_age=$(find /var/lib/apt/lists -maxdepth 1 -type f -name '*Packages' -mtime -1 2>/dev/null | wc -l)
             fi
-            
             if [ "$apt_lists_age" -gt 0 ]; then
-                local upgradable=$(apt list --upgradable 2>/dev/null | grep -c "upgradable")
+                local upgradable security_count
+                upgradable=$(apt list --upgradable 2>/dev/null | grep -c "upgradable")
                 if [ "$upgradable" -gt 0 ]; then
-                    # Count security updates
-                    local security_count=$(apt list --upgradable 2>/dev/null | grep -ci "security")
+                    security_count=$(apt list --upgradable 2>/dev/null | grep -ci "security")
                     if [ "$security_count" -gt 0 ]; then
                         printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$upgradable" "$security_count"
                     else
@@ -332,8 +361,9 @@ sysinfo() {
     # --- Docker Info ---
     if command -v docker &>/dev/null; then
         if docker_states=$(timeout 2s docker ps -a --format '{{.State}}' 2>/dev/null); then
-            local running=$(echo "$docker_states" | grep -c '^running$' || echo "0")
-            local total=$(echo "$docker_states" | wc -l)
+            local running total
+            running=$(echo "$docker_states" | grep -c '^running$' || echo "0")
+            total=$(echo "$docker_states" | wc -l)
             if [ "$total" -gt 0 ]; then
                 printf "${CYAN}%-13s${RESET} ${GREEN}%s running${RESET} / %s total containers\n" "Docker:" "$running" "$total"
             fi
@@ -387,11 +417,18 @@ alias path='echo -e ${PATH//:/\\n}'  # Print PATH on separate lines
 alias lsd='ls -d */ 2>/dev/null'      # List only directories
 alias lsf='ls -p | grep -v /'         # List only files
 
-# System resource aliases.
+# System resource helpers.
 alias df='df -h'
 alias du='du -h'
 alias free='free -h'
-alias psgrep='ps aux | grep -v grep | grep -i -e VSZ -e'
+# psgrep as a function to accept patterns reliably
+psgrep() {
+    if [ $# -eq 0 ]; then
+        echo "Usage: psgrep <pattern>" >&2
+        return 1
+    fi
+    ps aux | grep -i "$@" | grep -v grep
+}
 alias ports='ss -tuln'
 alias listening='ss -tlnp'
 alias meminfo='free -h -l -t'
@@ -444,24 +481,24 @@ if command -v docker &>/dev/null; then
     alias drm='docker rm'
     alias drmi='docker rmi'
     alias dpull='docker pull'
-    
+
     # Docker system management
     alias dprune='docker system prune -f'
     alias dprunea='docker system prune -af'
     alias ddf='docker system df'
     alias dvprune='docker volume prune -f'
     alias diprune='docker image prune -af'
-    
+
     # Docker stats
     alias dstats='docker stats --no-stream'
     alias dstatsa='docker stats'
     alias dtop='docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"'
-    
+
     # Safe stop all (shows command instead of executing)
     alias dstopall='echo "To stop all containers, run: docker stop \$(docker ps -q)"'
-    
+
     # Docker Compose v2 aliases (check if the compose plugin exists)
-    if docker compose version &>/dev/null 2>&1; then
+    if docker compose version &>/dev/null; then
         alias dc='docker compose'
         alias dcup='docker compose up -d'
         alias dcdown='docker compose down'
@@ -478,9 +515,9 @@ if command -v docker &>/dev/null; then
         alias dcconfig='docker compose config'
         alias dcvalidate='docker compose config --quiet && echo "✓ docker-compose.yml is valid" || echo "✗ docker-compose.yml has errors"'
     fi
-    
+
     # --- Docker Functions ---
-    
+
     # Enter container shell (bash or sh fallback)
     dsh() {
         if [ -z "$1" ]; then
@@ -489,7 +526,7 @@ if command -v docker &>/dev/null; then
         fi
         docker exec -it "$1" bash 2>/dev/null || docker exec -it "$1" sh
     }
-    
+
     # Docker Compose enter shell (bash or sh fallback)
     dcsh() {
         if [ -z "$1" ]; then
@@ -498,7 +535,7 @@ if command -v docker &>/dev/null; then
         fi
         docker compose exec "$1" bash 2>/dev/null || docker compose exec "$1" sh
     }
-    
+
     # Follow logs for a specific container with tail
     dfollow() {
         if [ -z "$1" ]; then
@@ -508,7 +545,7 @@ if command -v docker &>/dev/null; then
         local lines="${2:-100}"
         docker logs -f --tail "$lines" "$1"
     }
-    
+
     # Show container IP addresses
     dip() {
         if [ -z "$1" ]; then
@@ -517,12 +554,11 @@ if command -v docker &>/dev/null; then
             docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$1" 2>/dev/null
         fi
     }
-    
+
     # Show bind mounts for containers
     dbinds() {
         if [ -z "$1" ]; then
-            # Show all running containers' bind mounts
-            printf "\n${GREEN}Container Bind Mounts:${RESET}\n"
+            printf "\n\033[1;32mContainer Bind Mounts:\033[0m\n"
             printf "═══════════════════════════════════════════════════════════════\n"
             docker ps --format '{{.Names}}' | while read container; do
                 printf "\n\033[1;32m%s\033[0m:\n" "$container"
@@ -530,23 +566,19 @@ if command -v docker &>/dev/null; then
             done
             printf "\n"
         else
-            # Show specific container's bind mounts
             printf "\nBind mounts for %s:\n" "$1"
             docker inspect "$1" --format '{{range .Mounts}}{{if eq .Type "bind"}}  {{.Source}} → {{.Destination}}{{println}}{{end}}{{end}}' 2>/dev/null
         fi
     }
-    
-    # Show disk usage by containers
+
+    # Show disk usage by containers (enable size reporting)
     dsize() {
         printf "\n%-40s %s\n" "Container" "Size"
         printf "═══════════════════════════════════════════════════════════════\n"
-        docker ps -a --format '{{.Names}}' | while read container; do
-            size=$(docker ps -a --filter "name=^${container}$" --format "{{.Size}}" 2>/dev/null)
-            printf "%-40s %s\n" "$container" "$size"
-        done
+        docker ps -a --size --format '{{.Names}}\t{{.Size}}' | column -t
         printf "\n"
     }
-    
+
     # Restart a compose service and follow logs
     dcreload() {
         if [ -z "$1" ]; then
@@ -555,7 +587,7 @@ if command -v docker &>/dev/null; then
         fi
         docker compose restart "$1" && docker compose logs -f "$1"
     }
-    
+
     # Update and restart a single compose service
     dcupdate() {
         if [ -z "$1" ]; then
@@ -564,7 +596,7 @@ if command -v docker &>/dev/null; then
         fi
         docker compose pull "$1" && docker compose up -d "$1" && docker compose logs -f "$1"
     }
-    
+
     # Show Docker Compose services status with detailed info
     dcstatus() {
         printf "\n=== Docker Compose Services ===\n\n"
@@ -573,7 +605,7 @@ if command -v docker &>/dev/null; then
         docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
         printf "\n"
     }
-    
+
     # Watch Docker Compose logs for specific service with grep
     dcgrep() {
         if [ -z "$1" ] || [ -z "$2" ]; then
@@ -582,7 +614,7 @@ if command -v docker &>/dev/null; then
         fi
         docker compose logs -f "$1" | grep --color=auto -i "$2"
     }
-    
+
     # Show environment variables for a container
     denv() {
         if [ -z "$1" ]; then
@@ -591,10 +623,11 @@ if command -v docker &>/dev/null; then
         fi
         docker inspect "$1" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sort
     }
-    
+
     # Remove all stopped containers
     drmall() {
-        local containers=$(docker ps -aq -f status=exited 2>/dev/null)
+        local containers
+        containers=$(docker ps -aq -f status=exited 2>/dev/null)
         if [ -n "$containers" ]; then
             docker rm $containers
             echo "Removed all stopped containers"
@@ -635,6 +668,7 @@ fi
 # Load hostname-specific configurations if they exist.
 # This allows per-server customization without modifying the main bashrc.
 if [ -f ~/.bashrc."$(hostname -s)" ]; then
+    # shellcheck disable=SC1090
     source ~/.bashrc."$(hostname -s)"
 fi
 
@@ -642,19 +676,23 @@ fi
 # Enable programmable completion features.
 if ! shopt -oq posix; then
   if [ -f /usr/share/bash-completion/bash_completion ]; then
+    # shellcheck disable=SC1091
     . /usr/share/bash-completion/bash_completion
   elif [ -f /etc/bash_completion ]; then
+    # shellcheck disable=SC1091
     . /etc/bash_completion
   fi
 fi
 
 # Source personal aliases if the file exists.
 if [ -f ~/.bash_aliases ]; then
+    # shellcheck disable=SC1090
     . ~/.bash_aliases
 fi
 
 # Source local machine-specific settings that shouldn't be in version control.
 if [ -f ~/.bashrc.local ]; then
+    # shellcheck disable=SC1090
     . ~/.bashrc.local
 fi
 
