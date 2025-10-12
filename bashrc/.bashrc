@@ -232,29 +232,56 @@ histop() {
     history | awk '{CMD[$2]++;count++;}END { for (a in CMD)print CMD[a] " " CMD[a]/count*100 "% " a;}' | grep -v "./" | column -c3 -s " " -t | sort -nr | nl | head -n20
 }
 
-# Quick server info display.
+# Quick server info.
 sysinfo() {
-    printf "\n=== System Information ===\n"
-    printf "Hostname: %s\n" "$(hostname)"
-    printf "OS: %s\n" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2)"
-    printf "Kernel: %s\n" "$(uname -r)"
-    printf "Uptime: %s\n" "$(uptime -p 2>/dev/null || uptime)"
-    printf "Server time:  %s\n" "$(date)"
-    printf "CPU: %s\n" "$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs)"
-    printf "Memory: %s\n" "$(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
-    printf "Disk: %s\n" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
+    # Check if the shell is set to use color, based on the check earlier in .bashrc
+    if [ "$color_prompt" = yes ]; then
+        local CYAN='\e[1;36m'
+        local YELLOW='\e[1;33m'
+        local BOLD_WHITE='\e[1;37m'
+        local RESET='\e[0m'
+    else
+        # If no color support, define variables as empty strings to disable color
+        local CYAN=''
+        local YELLOW=''
+        local BOLD_WHITE=''
+        local RESET=''
+    fi
 
-    # Add Docker info if installed and responsive.
+    # --- Header ---
+    printf "\n${BOLD_WHITE}=== System Information ===${RESET}\n"
+
+    # --- System Info ---
+    printf "${CYAN}%-12s${RESET} %s\n" "Hostname:" "$(hostname)"
+    printf "${CYAN}%-12s${RESET} %s\n" "OS:" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2)"
+    printf "${CYAN}%-12s${RESET} %s\n" "Kernel:" "$(uname -r)"
+    printf "${CYAN}%-12s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime)"
+    printf "${CYAN}%-12s${RESET} %s\n" "Server time:" "$(date)"
+    printf "${CYAN}%-12s${RESET} %s\n" "CPU:" "$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs)"
+    printf "${CYAN}%-12s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
+    printf "${CYAN}%-12s${RESET} %s\n" "Disk:" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
+
+    # --- Conditional Info ---
+    if [ -r /var/lib/update-notifier/updates-available ]; then
+        updates=$(grep -c "packages can be updated" /var/lib/update-notifier/updates-available)
+        security=$(grep -c "security updates" /var/lib/update-notifier/updates-available)
+        if [ "$updates" -gt 0 ]; then
+            total=$(cat /var/lib/update-notifier/updates-available | awk '{print $1; exit}')
+            if [ "$security" -gt 0 ]; then
+                sec_total=$(grep "security updates" /var/lib/update-notifier/updates-available | awk '{print $1}')
+                printf "${CYAN}%-12s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$sec_total"
+            else
+                printf "${CYAN}%-12s${RESET} %s packages available\n" "Updates:" "$total"
+            fi
+        fi
+    fi
+
     if command -v docker &>/dev/null; then
-        # Use a 2-second timeout to prevent login delays if the Docker daemon is hung.
-        # This command is efficient, getting all container states in one call.
         if docker_states=$(timeout 2s docker ps -a --format '{{.State}}' 2>/dev/null); then
             local running=$(echo "$docker_states" | grep -c '^running$')
             local total=$(echo "$docker_states" | wc -l)
-
-            # Only show the line if there are any containers to report on.
             if [ "$total" -gt 0 ]; then
-                printf "Docker: %s running / %s total containers\n" "$running" "$total"
+                printf "${CYAN}%-12s${RESET} %s running / %s total containers\n" "Docker:" "$running" "$total"
             fi
         fi
     fi
