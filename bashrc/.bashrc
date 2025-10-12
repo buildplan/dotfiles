@@ -242,6 +242,21 @@ sysinfo() {
     printf "CPU: %s\n" "$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs)"
     printf "Memory: %s\n" "$(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
     printf "Disk: %s\n" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
+
+    # Add Docker info if installed and responsive.
+    if command -v docker &>/dev/null; then
+        # Use a 2-second timeout to prevent login delays if the Docker daemon is hung.
+        # This command is efficient, getting all container states in one call.
+        if docker_states=$(timeout 2s docker ps -a --format '{{.State}}' 2>/dev/null); then
+            local running=$(echo "$docker_states" | grep -c '^running$')
+            local total=$(echo "$docker_states" | wc -l)
+
+            # Only show the line if there are any containers to report on.
+            if [ "$total" -gt 0 ]; then
+                printf "Docker: %s running / %s total containers\n" "$running" "$total"
+            fi
+        fi
+    fi
     printf "\n"
 }
 
