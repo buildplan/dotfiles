@@ -2,7 +2,7 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 2.6
+#   Version: 3.0
 #   Last Updated: 2025-10-12
 # ===================================================================
 
@@ -731,6 +731,393 @@ if [ -n "$SSH_CONNECTION" ]; then
     printf "Active sessions: %s\n" "$(who | wc -l)"
     printf -- "-----------------------------------------------------\n\n"
 fi
+
+# --- Help System ---
+# Display all custom functions and aliases with descriptions
+bashhelp() {
+    local category="${1:-all}"
+    
+    case "$category" in
+        all|"")
+            cat << 'EOF'
+
+╔═══════════════════════════════════════════════════════════════════╗
+║           Universal Bashrc - Quick Reference Guide                ║
+║                        Version 2.6                                ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+Usage: bashhelp [category]
+Categories: navigation, files, system, docker, git, network, help
+
+═══════════════════════════════════════════════════════════════════
+📁 NAVIGATION & DIRECTORY
+═══════════════════════════════════════════════════════════════════
+  ..              Go up one directory
+  ...             Go up two directories
+  ....            Go up three directories
+  .....           Go up four directories
+  -               Go to previous directory
+  ~               Go to home directory
+  
+  mkcd <dir>      Create directory and cd into it
+  up <n>          Go up N directories (e.g., up 3)
+  path            Display PATH variable (one per line)
+
+═══════════════════════════════════════════════════════════════════
+📄 FILE OPERATIONS
+═══════════════════════════════════════════════════════════════════
+  ll              List all files with details (human-readable)
+  la              List all files including hidden
+  l               List files in column format
+  lt              List by time, newest first
+  ltr             List by time, oldest first
+  lS              List by size, largest first
+  lsd             List only directories
+  lsf             List only files
+  
+  ff <name>       Find files by name (case-insensitive)
+  fd <name>       Find directories by name (case-insensitive)
+  ftext <text>    Search for text in files recursively
+  
+  extract <file>  Extract any archive (tar, zip, 7z, etc.)
+  targz <dir>     Create tar.gz of directory
+  backup <file>   Create timestamped backup of file
+  
+  sizeof <path>   Get size of file or directory
+  duh [path]      Disk usage sorted by size
+  count           Count files in current directory
+  cpv <src> <dst> Copy with progress bar (rsync)
+
+═══════════════════════════════════════════════════════════════════
+💻 SYSTEM & MONITORING
+═══════════════════════════════════════════════════════════════════
+  sysinfo         Display comprehensive system information
+  checkupdates    Check for available system updates
+  
+  psgrep <pat>    Search for process by name
+  psmem           Show top 10 processes by memory usage
+  pscpu           Show top 10 processes by CPU usage
+  top10           Show top 10 memory-consuming processes
+  
+  ports           Show all listening ports (TCP/UDP)
+  listening       Show listening ports with process info
+  meminfo         Display detailed memory information
+  
+  h               Show command history
+  histop          Show most used commands
+  reload          Reload bashrc configuration
+
+═══════════════════════════════════════════════════════════════════
+🐳 DOCKER & DOCKER COMPOSE
+═══════════════════════════════════════════════════════════════════
+Docker Commands:
+  d               docker (shortcut)
+  dps             List running containers
+  dpsa            List all containers
+  di              List images
+  dv              List volumes
+  dn              List networks
+  dex <id>        Execute interactive shell in container
+  dlog <id>       Follow container logs
+  
+  dsh <id>        Enter container shell (bash/sh)
+  dip [id]        Show container IP addresses
+  dsize           Show disk usage by containers
+  dbinds [id]     Show bind mounts for containers
+  denv <id>       Show environment variables
+  dfollow <id>    Follow logs with tail (default 100 lines)
+  
+  dstats          Container stats snapshot
+  dstatsa         Container stats live
+  dtop            Container stats formatted table
+  
+  dprune          Prune system (remove unused data)
+  dprunea         Prune all (including images)
+  dvprune         Prune unused volumes
+  diprune         Prune unused images
+  drmall          Remove all stopped containers
+
+Docker Compose:
+  dc              docker compose (shortcut)
+  dcup            Start services in background
+  dcdown          Stop and remove services
+  dclogs          Follow compose logs
+  dcps            List compose services
+  dcex <srv>      Execute command in service
+  dcsh <srv>      Enter service shell (bash/sh)
+  
+  dcbuild         Build services
+  dcbn            Build with no cache
+  dcrestart       Restart services
+  dcrecreate      Recreate services
+  dcpull          Pull service images
+  dcstop          Stop services
+  dcstart         Start services
+  
+  dcstatus        Show service status & resource usage
+  dcreload <srv>  Restart service and follow logs
+  dcupdate <srv>  Pull, restart service, follow logs
+  dcgrep <srv> <pattern>  Filter service logs
+  dcconfig        Show resolved compose configuration
+  dcvalidate      Validate compose file syntax
+
+═══════════════════════════════════════════════════════════════════
+🔀 GIT SHORTCUTS
+═══════════════════════════════════════════════════════════════════
+  gs              git status
+  ga              git add
+  gc              git commit
+  gp              git push
+  gl              git log (graph view)
+  gd              git diff
+  gb              git branch
+  gco             git checkout
+
+═══════════════════════════════════════════════════════════════════
+🌐 NETWORK
+═══════════════════════════════════════════════════════════════════
+  myip            Show external IP address
+  localip         Show local IP address(es)
+  ping            Ping with 5 packets (default)
+  fastping        Fast ping (100 packets, 0.2s interval)
+  netstat         Show network connections (ss)
+
+═══════════════════════════════════════════════════════════════════
+⚙️  SYSTEM ADMINISTRATION
+═══════════════════════════════════════════════════════════════════
+Systemd:
+  sysstart <srv>      Start service
+  sysstop <srv>       Stop service
+  sysrestart <srv>    Restart service
+  sysstatus <srv>     Show service status
+  sysenable <srv>     Enable service
+  sysdisable <srv>    Disable service
+  sysreload           Reload systemd daemon
+
+APT (Debian/Ubuntu):
+  aptup               Update and upgrade packages
+  aptin <pkg>         Install package
+  aptrm <pkg>         Remove package
+  aptsearch <term>    Search for packages
+  aptshow <pkg>       Show package information
+  aptclean            Remove unused packages
+  aptlist             List installed packages
+
+═══════════════════════════════════════════════════════════════════
+🕒 DATE & TIME
+═══════════════════════════════════════════════════════════════════
+  now             Current date and time (YYYY-MM-DD HH:MM:SS)
+  nowdate         Current date (YYYY-MM-DD)
+  timestamp       Unix timestamp
+
+═══════════════════════════════════════════════════════════════════
+ℹ️  HELP & INFORMATION
+═══════════════════════════════════════════════════════════════════
+  bashhelp            Show this help (all categories)
+  bashhelp navigation Show navigation commands only
+  bashhelp files      Show file operation commands
+  bashhelp system     Show system monitoring commands
+  bashhelp docker     Show docker commands only
+  bashhelp git        Show git shortcuts
+  bashhelp network    Show network commands
+
+═══════════════════════════════════════════════════════════════════
+
+💡 TIP: Most commands support --help or -h for more information
+     The prompt shows: ✗ for failed commands, git branch when in repo
+
+EOF
+            ;;
+            
+        navigation)
+            cat << 'EOF'
+
+═══ NAVIGATION & DIRECTORY COMMANDS ═══
+
+  ..              Go up one directory
+  ...             Go up two directories
+  ....            Go up three directories
+  .....           Go up four directories
+  -               Go to previous directory
+  ~               Go to home directory
+  
+  mkcd <dir>      Create directory and cd into it
+  up <n>          Go up N directories
+  path            Display PATH variable
+
+Examples:
+  mkcd ~/projects/newapp    # Create and enter directory
+  up 3                      # Go up 3 levels
+  cd -                      # Return to previous directory
+
+EOF
+            ;;
+            
+        files)
+            cat << 'EOF'
+
+═══ FILE OPERATION COMMANDS ═══
+
+Listing:
+  ll, la, l, lt, ltr, lS, lsd, lsf
+
+Finding:
+  ff <name>       Find files by name
+  fd <name>       Find directories by name
+  ftext <text>    Search text in files
+
+Archives:
+  extract <file>  Extract any archive type
+  targz <dir>     Create tar.gz archive
+  backup <file>   Create timestamped backup
+
+Size Info:
+  sizeof <path>   Get size of file/directory
+  duh [path]      Disk usage sorted by size
+  count           Count files in directory
+  cpv             Copy with progress (rsync)
+
+Examples:
+  ff README       # Find files named *README*
+  extract data.tar.gz
+  backup ~/.bashrc
+
+EOF
+            ;;
+            
+        system)
+            cat << 'EOF'
+
+═══ SYSTEM MONITORING COMMANDS ═══
+
+Overview:
+  sysinfo         Comprehensive system info
+  checkupdates    Check for package updates
+
+Processes:
+  psgrep <pat>    Search processes
+  psmem           Top 10 by memory
+  pscpu           Top 10 by CPU
+  top10           Top memory consumers
+
+Network:
+  ports           Listening ports
+  listening       Ports with process info
+  
+Memory:
+  meminfo         Detailed memory info
+  free            Free memory (human-readable)
+
+History:
+  h               Show history
+  histop          Most used commands
+  reload          Reload bashrc
+
+Examples:
+  psgrep nginx
+  psmem | grep docker
+
+EOF
+            ;;
+            
+        docker)
+            cat << 'EOF'
+
+═══ DOCKER COMMANDS ═══
+
+Basic:
+  dps, dpsa, di, dv, dn, dex, dlog
+
+Management:
+  dsh <id>        Enter container shell
+  dip [id]        Show IP addresses
+  dsize           Show disk usage
+  dbinds [id]     Show bind mounts
+  denv <id>       Show environment variables
+  dfollow <id>    Follow logs
+
+Stats & Cleanup:
+  dstats, dstatsa, dtop
+  dprune, dprunea, dvprune, diprune
+  drmall          Remove stopped containers
+
+Docker Compose:
+  dcup, dcdown, dclogs, dcps, dcex, dcsh
+  dcbuild, dcrestart, dcrecreate
+  dcstatus        Status & resource usage
+  dcreload <srv>  Restart & follow logs
+  dcupdate <srv>  Pull & update service
+  dcgrep <s> <p>  Filter logs
+  dcvalidate      Validate compose file
+
+Examples:
+  dsh mycontainer
+  dcsh web bash
+  dcupdate nginx
+  dcgrep app "error"
+
+EOF
+            ;;
+            
+        git)
+            cat << 'EOF'
+
+═══ GIT SHORTCUTS ═══
+
+  gs              git status
+  ga              git add
+  gc              git commit
+  gp              git push
+  gl              git log (graph)
+  gd              git diff
+  gb              git branch
+  gco             git checkout
+
+Examples:
+  gs                    # Check status
+  ga .                  # Add all changes
+  gc -m "Update docs"   # Commit
+  gp                    # Push to remote
+
+EOF
+            ;;
+            
+        network)
+            cat << 'EOF'
+
+═══ NETWORK COMMANDS ═══
+
+  myip            Show external IP
+  localip         Show local IP(s)
+  ports           Show listening ports
+  listening       Ports with process info
+  ping            Ping (5 packets)
+  fastping        Fast ping (100 packets)
+  netstat         Network connections
+
+Examples:
+  myip              # Get public IP
+  listening | grep 80
+  ping google.com
+
+EOF
+            ;;
+            
+        *)
+            echo "Unknown category: $category"
+            echo "Available categories: navigation, files, system, docker, git, network"
+            echo "Use 'bashhelp' or 'bashhelp all' for complete reference"
+            return 1
+            ;;
+    esac
+}
+
+# Shorter alias for help
+alias bh='bashhelp'
+alias help='bashhelp'
+
+# Quick command list (compact)
+alias commands='compgen -A function -A alias | grep -v "^_" | sort | column'
 
 # --- Performance Note ---
 # This configuration is optimized for performance using built-in bash operations
