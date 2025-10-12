@@ -312,7 +312,8 @@ sysinfo() {
             # Only do this check if apt lists are recent (within last 24 hours)
             local apt_lists_age=0
             if [ -d /var/lib/apt/lists ]; then
-                apt_lists_age=$(find /var/lib/apt/lists -type f -name '*Packages' -mtime -1 | wc -l)
+                # Suppress permission denied errors from find command
+                apt_lists_age=$(find /var/lib/apt/lists -maxdepth 1 -type f -name '*Packages' -mtime -1 2>/dev/null | wc -l)
             fi
             
             if [ "$apt_lists_age" -gt 0 ]; then
