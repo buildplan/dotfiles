@@ -743,7 +743,7 @@ bashhelp() {
 
 ╔═══════════════════════════════════════════════════════════════════╗
 ║           Universal Bashrc - Quick Reference Guide                ║
-║                        Version 2.6                                ║
+║                        Version 3.0                                ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 Usage: bashhelp [category]
