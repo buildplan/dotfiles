@@ -103,8 +103,10 @@ fi
 # Function to get git branch for prompt (optimized to only run in git repos).
 parse_git_branch() {
     # Only run in git repositories for performance.
-    git rev-parse --git-dir &>/dev/null || return
-    git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
+    if git rev-parse --git-dir &>/dev/null; then
+        git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
+    fi
+    return 0  # Always return success to not pollute $?
 }
 
 if [ "$color_prompt" = yes ]; then
@@ -113,6 +115,7 @@ if [ "$color_prompt" = yes ]; then
 else
     export PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
 fi
+
 unset color_prompt
 
 # Set the terminal window title to user@host:dir for supported terminals.
