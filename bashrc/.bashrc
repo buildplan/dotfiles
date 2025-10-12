@@ -208,9 +208,16 @@ extract() {
             *.7z)        7z x "$1"         ;;
             *.deb)       ar x "$1"         ;;
             *.tar.zst)
-                if command -v zstd &>/dev/null; then; zstd -dc "$1" | tar xf -
-                else; tar --zstd -xf "$1"; fi ;;
-            *)          echo "'$1' cannot be extracted via extract()" ;;
+                if command -v zstd &>/dev/null; then
+                    zstd -dc "$1" | tar xf -
+                else
+                    tar --zstd -xf "$1"
+                fi
+                ;;
+            *)
+                echo "'$1' cannot be extracted via extract()" >&2
+                return 1 # Add return 1 for consistency
+                ;;
         esac
     else
         echo "'$1' is not a valid file" >&2
@@ -548,124 +555,119 @@ if command -v docker &>/dev/null; then
         alias dcvalidate='docker compose config --quiet && echo "✓ docker-compose.yml is valid" || echo "✗ docker-compose.yml has errors"'
     fi
 
-    # --- Docker Functions ---
+# --- Docker Functions ---
 
-    # Enter container shell (bash or sh fallback)
-    dsh() {
-        if [ -z "$1" ]; then
-            echo "Usage: dsh <container-name-or-id>" >&2
-            return 1
-        fi
-        docker exec -it "$1" bash 2>/dev/null || docker exec -it "$1" sh
-    }
+# Enter container shell (bash or sh fallback)
+dsh() {
+    if [ -z "$1" ]; then
+        echo "Usage: dsh <container-name-or-id>" >&2
+        return 1
+    fi
+    docker exec -it "$1" bash 2>/dev/null || docker exec -it "$1" sh
+}
 
-    # Docker Compose enter shell (bash or sh fallback)
-    dcsh() {
-        if [ -z "$1" ]; then
-            echo "Usage: dcsh <service-name>" >&2
-            return 1
-        fi
-        docker compose exec "$1" bash 2>/dev/null || docker compose exec "$1" sh
-    }
+# Docker Compose enter shell (bash or sh fallback)
+dcsh() {
+    if [ -z "$1" ]; then
+        echo "Usage: dcsh <service-name>" >&2
+        return 1
+    fi
+    docker compose exec "$1" bash 2>/dev/null || docker compose exec "$1" sh
+}
 
-    # Follow logs for a specific container with tail
-    dfollow() {
-        if [ -z "$1" ]; then
-            echo "Usage: dfollow <container-name-or-id> [lines]" >&2
-            return 1
-        fi
-        local lines="${2:-100}"
-        docker logs -f --tail "$lines" "$1"
-    }
+# Follow logs for a specific container with tail
+dfollow() {
+    if [ -z "$1" ]; then
+        echo "Usage: dfollow <container-name-or-id> [lines]" >&2
+        return 1
+    fi
+    local lines="${2:-100}"
+    docker logs -f --tail "$lines" "$1"
+}
 
-    # Show container IP addresses
-    dip() {
-        if [ -z "$1" ]; then
-            docker ps -q | xargs -I {} docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' {} 2>/dev/null
-        else
-            docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$1" 2>/dev/null
-        fi
-    }
+# Show container IP addresses
+dip() {
+    if [ -z "$1" ]; then
+        docker ps -q | xargs -I {} docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' {} 2>/dev/null
+    else
+        docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$1" 2>/dev/null
+    fi
+}
 
-    # Show bind mounts for containers
-    dbinds() {
-        if [ -z "$1" ]; then
-            printf "\n\033[1;32mContainer Bind Mounts:\033[0m\n"
-            printf "═══════════════════════════════════════════════════════════════\n"
-            docker ps --format '{{.Names}}' | while IFS= read -r container; do
-                printf "\n\033[1;32m%s\033[0m:\n" "$container"
-                docker inspect "$container" --format '{{range .Mounts}}{{if eq .Type "bind"}}  {{.Source}} → {{.Destination}}{{println}}{{end}}{{end}}' 2>/dev/null
-            done
-            printf "\n"
-        else
-            printf "\nBind mounts for %s:\n" "$1"
-            docker inspect "$1" --format '{{range .Mounts}}{{if eq .Type "bind"}}  {{.Source}} → {{.Destination}}{{println}}{{end}}{{end}}' 2>/dev/null
-        fi
-    }
-
-    # Show disk usage by containers (enable size reporting)
-    dsize() {
-        printf "\n%-40s %s\n" "Container" "Size"
+# Show bind mounts for containers
+dbinds() {
+    if [ -z "$1" ]; then
+        printf "\n\033[1;32mContainer Bind Mounts:\033[0m\n"
         printf "═══════════════════════════════════════════════════════════════\n"
-        docker ps -a --size --format '{{.Names}}\t{{.Size}}' | column -t
+        docker ps --format '{{.Names}}' | while IFS= read -r container; do
+            printf "\n\033[1;32m%s\033[0m:\n" "$container"
+            docker inspect "$container" --format '{{range .Mounts}}{{if eq .Type "bind"}}  {{.Source}} → {{.Destination}}{{println}}{{end}}{{end}}' 2>/dev/null
+        done
         printf "\n"
-    }
+    else
+        printf "\nBind mounts for %s:\n" "$1"
+        docker inspect "$1" --format '{{range .Mounts}}{{if eq .Type "bind"}}  {{.Source}} → {{.Destination}}{{println}}{{end}}{{end}}' 2>/dev/null
+    fi
+}
 
-    # Restart a compose service and follow logs
-    dcreload() {
-        if [ -z "$1" ]; then
-            echo "Usage: dcreload <service-name>" >&2
-            return 1
-        fi
-        docker compose restart "$1" && docker compose logs -f "$1"
-    }
+# Show disk usage by containers (enable size reporting)
+dsize() {
+    printf "\n%-40s %s\n" "Container" "Size"
+    printf "═══════════════════════════════════════════════════════════════\n"
+    docker ps -a --size --format '{{.Names}}\t{{.Size}}' | column -t
+    printf "\n"
+}
 
-    # Update and restart a single compose service
-    dcupdate() {
-        if [ -z "$1" ]; then
-            echo "Usage: dcupdate <service-name>" >&2
-            return 1
-        fi
-        docker compose pull "$1" && docker compose up -d "$1" && docker compose logs -f "$1"
-    }
+# Restart a compose service and follow logs
+dcreload() {
+    if [ -z "$1" ]; then
+        echo "Usage: dcreload <service-name>" >&2
+        return 1
+    fi
+    docker compose restart "$1" && docker compose logs -f "$1"
+}
 
-    # Show Docker Compose services status with detailed info
-    dcstatus() {
-        printf "\n=== Docker Compose Services ===\n\n"
-        docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-        printf "\n=== Resource Usage ===\n\n"
-        docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
-        printf "\n"
-    }
+# Update and restart a single compose service
+dcupdate() {
+    if [ -z "$1" ]; then
+        echo "Usage: dcupdate <service-name>" >&2
+        return 1
+    fi
+    docker compose pull "$1" && docker compose up -d "$1" && docker compose logs -f "$1"
+}
 
-    # Watch Docker Compose logs for specific service with grep
-    dcgrep() {
-        if [ -z "$1" ] || [ -z "$2" ]; then
-            echo "Usage: dcgrep <service-name> <search-pattern>" >&2
-            return 1
-        fi
-        docker compose logs -f "$1" | grep --color=auto -i "$2"
-    }
+# Show Docker Compose services status with detailed info
+dcstatus() {
+    printf "\n=== Docker Compose Services ===\n\n"
+    docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+    printf "\n=== Resource Usage ===\n\n"
+    docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
+    printf "\n"
+}
 
-    # Show environment variables for a container
-    denv() {
-        if [ -z "$1" ]; then
-            echo "Usage: denv <container-name-or-id>" >&2
-            return 1
-        fi
-        docker inspect "$1" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sort
-    }
+# Watch Docker Compose logs for specific service with grep
+dcgrep() {
+    if [ -z "$1" ] || [ -z "$2" ]; then
+        echo "Usage: dcgrep <service-name> <search-pattern>" >&2
+        return 1
+    fi
+    docker compose logs -f "$1" | grep --color=auto -i "$2"
+}
 
-    # Remove all stopped containers
-    drmall() {
-        docker ps -aq -f status=exited 2>/dev/null | xargs -r docker rm
-        if [ "${PIPESTATUS[0]}" -eq 0 ]; then
-            echo "Removed all stopped containers (if any)"
-        else
-            echo "No stopped containers to remove or error occurred"
-        fi
-    }
-fi
+# Show environment variables for a container
+denv() {
+    if [ -z "$1" ]; then
+        echo "Usage: denv <container-name-or-id>" >&2
+        return 1
+    fi
+    docker inspect "$1" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sort
+}
+
+# Remove all stopped containers
+drmall() {
+    # Using the modern, direct command
+    docker container prune -f
+}
 
 # Systemd shortcuts.
 if command -v systemctl &>/dev/null; then
