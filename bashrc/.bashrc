@@ -2,7 +2,7 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 0.5
+#   Version: 0.6
 #   Last Updated: 2025-10-12
 # ===================================================================
 
@@ -113,35 +113,44 @@ parse_git_branch() {
     return 0  # Always return success to not pollute $?
 }
 
-# A single function to handle all pre-prompt tasks
+# This single function handles all pre-prompt tasks and dynamically builds PS1.
 __bash_prompt_command() {
-    local rc=$? # Capture exit status immediately
+    local rc=$? # Capture the exit status of the last command immediately.
 
-    # 1. Set exit status indicator (replaces __prompt_status)
-    if (( rc != 0 )); then
-        PS1_ERR=" ✗"
-    else
-        PS1_ERR=""
-    fi
-    
-    # 2. Append history from this session (replaces 'history -a')
+    # Append this session's history and reload history from other sessions.
     history -a
-    
-    # 3. Reload history from other sessions (replaces 'history -n')
     history -n
+
+    # --- Build Dynamic Prompt Components ---
+    local prompt_err=""
+    local prompt_git=""
+
+    # 1. Create the error status component ONLY if the last command failed.
+    if (( rc != 0 )); then
+        prompt_err="\[\e[31m\] ✗\[\e[0m\]" # Red cross for an error
+    fi
+
+    # 2. Create the git component ONLY if we are in a git repository.
+    # We capture the output of the function into a variable.
+    local git_branch
+    git_branch=$(parse_git_branch)
+    if [[ -n "$git_branch" ]]; then
+        # If the function returned text (i.e., we're in a repo), format it with color.
+        prompt_git="\[\e[33m\]${git_branch}\[\e[0m\]"
+    fi
+
+    # --- Assemble the Final PS1 ---
+    # This now cleanly combines the static parts with our dynamic components.
+    if [ "$color_prompt" = yes ]; then
+        PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]'"${prompt_git}${prompt_err}"' \$ '
+    else
+        # Non-colored version
+        PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w'"${git_branch}${prompt_err}"' \$ '
+    fi
 }
 
-# Set PROMPT_COMMAND to this single function
+# Set PROMPT_COMMAND to run our function before each prompt.
 PROMPT_COMMAND=__bash_prompt_command
-
-# Prompt: wrap only the color codes with \[ \], leave the text in ${PS1_ERR}
-# shellcheck disable=SC2016
-if [ "$color_prompt" = yes ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\[\e[33m\]$(parse_git_branch)\[\e[0m\]\[\e[31m\]${PS1_ERR}\[\e[0m\]\$ '
-else
-    # shellcheck disable=SC2016
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w${PS1_ERR}\$ '
-fi
 
 # Set the terminal window title to user@host:dir for supported terminals.
 case "$TERM" in
@@ -359,10 +368,13 @@ sysinfo() {
                 apt_lists_age=$(find /var/lib/apt/lists -maxdepth 1 -type f -name '*Packages' -mtime -1 2>/dev/null | wc -l)
             fi
             if [ "$apt_lists_age" -gt 0 ]; then
-                local upgradable security_count
-                upgradable=$(apt list --upgradable 2>/dev/null | grep -c "upgradable")
+                local upgradable_list
+                upgradable_list=$(apt list --upgradable 2>/dev/null)
+                local upgradable
+                upgradable=$(echo "$upgradable_list" | grep -c "upgradable")
                 if [ "$upgradable" -gt 0 ]; then
-                    security_count=$(apt list --upgradable 2>/dev/null | grep -ci "security")
+                    local security_count
+                    security_count=$(echo "$upgradable_list" | grep -ci "security")
                     if [ "$security_count" -gt 0 ]; then
                         printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$upgradable" "$security_count"
                     else
@@ -761,7 +773,7 @@ bashhelp() {
 
 ╔═══════════════════════════════════════════════════════════════════╗
 ║           Universal Bashrc - Quick Reference Guide                ║
-║                        Version 0.5                                ║
+║                        Version 0.6                                ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 Usage: bashhelp [category]
