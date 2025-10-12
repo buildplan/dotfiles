@@ -234,14 +234,25 @@ histop() {
 
 # Quick server info.
 sysinfo() {
-    # Check if the shell is set to use color, based on the check earlier in .bashrc
-    if [ "$color_prompt" = yes ]; then
+    # --- Self-Contained Color Detection ---
+    local color_support=""
+    # Check if the terminal reports color support.
+    case "$TERM" in
+        xterm-color|*-256color|xterm-kitty|alacritty|wezterm) color_support="yes";;
+    esac
+    # A more robust check using tput.
+    if [ -z "$color_support" ] && [ -x /usr/bin/tput ] && tput setaf 1 &>/dev/null; then
+        color_support="yes"
+    fi
+
+    # --- Color Definitions ---
+    if [ "$color_support" = "yes" ]; then
         local CYAN='\e[1;36m'
         local YELLOW='\e[1;33m'
         local BOLD_WHITE='\e[1;37m'
         local RESET='\e[0m'
     else
-        # If no color support, define variables as empty strings to disable color
+        # If no color support, variables are empty.
         local CYAN=''
         local YELLOW=''
         local BOLD_WHITE=''
