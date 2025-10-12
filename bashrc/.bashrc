@@ -2,7 +2,7 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 3.2
+#   Version: 0.5
 #   Last Updated: 2025-10-12
 # ===================================================================
 
@@ -644,9 +644,9 @@ dcupdate() {
 # Show Docker Compose services status with detailed info
 dcstatus() {
     printf "\n=== Docker Compose Services ===\n\n"
-    docker compose ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}' # Add quotes
+    docker compose ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}'
     printf "\n=== Resource Usage ===\n\n"
-    docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}' # Add quotes
+    docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}'
     printf "\n"
 }
 
@@ -761,7 +761,7 @@ bashhelp() {
 
 ╔═══════════════════════════════════════════════════════════════════╗
 ║           Universal Bashrc - Quick Reference Guide                ║
-║                        Version 3.2                                ║
+║                        Version 0.5                                ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 Usage: bashhelp [category]
