@@ -1,6 +1,8 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
+#   Version: 2.0
+#   Last Updated: 2025-10-12
 # ===================================================================
 
 # If not running interactively, don't do anything.
@@ -22,8 +24,8 @@ HISTFILESIZE=20000
 PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND; }history -a; history -n"
 # Allow editing of commands recalled from history.
 shopt -s histverify
-# Add timestamp to history entries for audit trail.
-HISTTIMEFORMAT="%F %T "
+# Add timestamp to history entries for audit trail (ISO 8601 format).
+HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S  "
 # Ignore common commands from history to reduce clutter.
 HISTIGNORE="ls:ll:la:l:cd:pwd:exit:clear:c:history:h"
 
@@ -39,7 +41,7 @@ shopt -s cdspell 2>/dev/null
 shopt -s dirspell 2>/dev/null
 # Correct multi-line command editing.
 shopt -s cmdhist 2>/dev/null
-# Case-insensitive globbing for pathname expansion.
+# Case-insensitive globbing (commented out to avoid unexpected behavior).
 # shopt -s nocaseglob 2>/dev/null
 
 # Set command-line editing mode. Emacs (default) or Vi.
@@ -56,11 +58,11 @@ export LESS='-R -F -X -i -M -w'
 # Colored man pages using less.
 export LESS_TERMCAP_mb=$'\e[1;31m'      # begin bold
 export LESS_TERMCAP_md=$'\e[1;36m'      # begin blink
-export LESS_TERMCAP_me=$'\e[0m'          # reset bold/blink
+export LESS_TERMCAP_me=$'\e[0m'         # reset bold/blink
 export LESS_TERMCAP_so=$'\e[01;44;33m'  # begin reverse video
-export LESS_TERMCAP_se=$'\e[0m'          # reset reverse video
+export LESS_TERMCAP_se=$'\e[0m'         # reset reverse video
 export LESS_TERMCAP_us=$'\e[1;32m'      # begin underline
-export LESS_TERMCAP_ue=$'\e[0m'          # reset underline
+export LESS_TERMCAP_ue=$'\e[0m'         # reset underline
 
 # --- Terminal & SSH Compatibility Fixes ---
 # Handle Kitty terminal over SSH - fallback to xterm-256color if terminfo unavailable.
@@ -98,16 +100,18 @@ if [ -z "${color_prompt}" ] && [ -x /usr/bin/tput ] && tput setaf 1 &>/dev/null;
     color_prompt=yes
 fi
 
-# Function to get git branch for prompt (defined here before PS1 is set).
+# Function to get git branch for prompt (optimized to only run in git repos).
 parse_git_branch() {
-    git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
+    # Only run in git repositories for performance.
+    git rev-parse --git-dir &>/dev/null || return
+    git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
 }
 
 if [ "$color_prompt" = yes ]; then
     # Green: user@host, Blue: directory, Yellow: git branch, Red: error indicator, White: prompt symbol.
-    export PS1='\[\e[32m\]\u@\h\[\e[00m\]:\[\e[34m\]\w\[\e[00m\]\[\e[33m\]$(parse_git_branch)\[\e[00m\]$([ $? != 0 ] && echo "\[\e[31m\] ✗\[\e[00m\]")\$ '
+    export PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[00m\]:\[\e[34m\]\w\[\e[00m\]\[\e[33m\]$(parse_git_branch)\[\e[00m\]$([ $? != 0 ] && echo "\[\e[31m\] ✗\[\e[00m\]")\$ '
 else
-    export PS1='\u@\h:\w\$ '
+    export PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
 fi
 unset color_prompt
 
@@ -178,7 +182,8 @@ extract() {
             *)           echo "'$1' cannot be extracted via extract()" ;;
         esac
     else
-        echo "'$1' is not a valid file"
+        echo "'$1' is not a valid file" >&2
+        return 1
     fi
 }
 
@@ -213,7 +218,8 @@ targz() {
         tar czf "${1%%/}.tar.gz" "${1%%/}"
         echo "Created ${1%%/}.tar.gz"
     else
-        echo "'$1' is not a valid directory"
+        echo "'$1' is not a valid directory" >&2
+        return 1
     fi
 }
 
@@ -232,7 +238,7 @@ histop() {
     history | awk '{CMD[$2]++;count++;}END { for (a in CMD)print CMD[a] " " CMD[a]/count*100 "% " a;}' | grep -v "./" | column -c3 -s " " -t | sort -nr | nl | head -n20
 }
 
-# Quick server info.
+# Quick server info display.
 sysinfo() {
     # --- Self-Contained Color Detection ---
     local color_support=""
@@ -249,9 +255,10 @@ sysinfo() {
         local YELLOW='\e[1;33m'
         local BOLD_RED='\e[1;31m'
         local BOLD_WHITE='\e[1;37m'
+        local GREEN='\e[1;32m'
         local RESET='\e[0m'
     else
-        local CYAN=''; local YELLOW=''; local BOLD_RED=''; local BOLD_WHITE=''; local RESET=''
+        local CYAN=''; local YELLOW=''; local BOLD_RED=''; local BOLD_WHITE=''; local GREEN=''; local RESET=''
     fi
 
     # --- Header ---
@@ -266,40 +273,42 @@ sysinfo() {
     if [ -z "$cpu_info" ]; then
         cpu_info=$(grep '^Model' /proc/cpuinfo | head -n 1 | cut -d ':' -f 2 | xargs 2>/dev/null)
     fi
+    [ -z "$cpu_info" ] && cpu_info="Unknown"
 
     # --- System Info ---
-    printf "${CYAN}%-12s${RESET} %s\n" "Hostname:" "$(hostname)"
-    printf "${CYAN}%-12s${RESET} %s\n" "OS:" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2)"
-    printf "${CYAN}%-12s${RESET} %s\n" "Kernel:" "$(uname -r)"
-    printf "${CYAN}%-12s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime)"
-    printf "${CYAN}%-12s${RESET} %s\n" "Server time:" "$(date)"
-    printf "${CYAN}%-12s${RESET} %s\n" "CPU:" "$cpu_info"
-    printf "${CYAN}%-12s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
-    printf "${CYAN}%-12s${RESET} %s\n" "Disk:" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
+    printf "${CYAN}%-13s${RESET} %s\n" "Hostname:" "$(hostname)"
+    printf "${CYAN}%-13s${RESET} %s\n" "OS:" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 || echo 'Unknown')"
+    printf "${CYAN}%-13s${RESET} %s\n" "Kernel:" "$(uname -r)"
+    printf "${CYAN}%-13s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime | sed 's/.*up //' | sed 's/,.*//')"
+    printf "${CYAN}%-13s${RESET} %s\n" "Server time:" "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+    printf "${CYAN}%-13s${RESET} %s\n" "CPU:" "$cpu_info"
+    printf "${CYAN}%-13s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {print $3 " / " $2 " (" int($3/$2 * 100) "% used)"}')"
+    printf "${CYAN}%-13s${RESET} %s\n" "Disk (/):" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
 
     # --- Conditional Info: Updates and Reboot Status ---
     if [ -f /var/run/reboot-required ]; then
-        printf "${CYAN}%-12s${RESET} ${BOLD_RED}REBOOT REQUIRED${RESET}\n" "System:"
-    elif [ -r /var/lib/update-notifier/updates-available ]; then
-        updates=$(grep -c "packages can be updated" /var/lib/update-notifier/updates-available)
-        if [ "$updates" -gt 0 ]; then
-            total=$(cat /var/lib/update-notifier/updates-available | awk '{print $1; exit}')
-            security=$(grep "security updates" /var/lib/update-notifier/updates-available | awk '{print $1}')
+        printf "${CYAN}%-13s${RESET} ${BOLD_RED}⚠ REBOOT REQUIRED${RESET}\n" "System:"
+    fi
+    
+    if [ -r /var/lib/update-notifier/updates-available ]; then
+        local total=$(grep "packages can be updated" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
+        local security=$(grep "security updates" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
+        if [ -n "$total" ] && [ "$total" -gt 0 ]; then
             if [ -n "$security" ] && [ "$security" -gt 0 ]; then
-                printf "${CYAN}%-12s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
+                printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
             else
-                printf "${CYAN}%-12s${RESET} %s packages available\n" "Updates:" "$total"
+                printf "${CYAN}%-13s${RESET} %s packages available\n" "Updates:" "$total"
             fi
         fi
     fi
 
-    # Docker Info
+    # --- Docker Info ---
     if command -v docker &>/dev/null; then
         if docker_states=$(timeout 2s docker ps -a --format '{{.State}}' 2>/dev/null); then
-            local running=$(echo "$docker_states" | grep -c '^running$')
+            local running=$(echo "$docker_states" | grep -c '^running$' || echo "0")
             local total=$(echo "$docker_states" | wc -l)
             if [ "$total" -gt 0 ]; then
-                printf "${CYAN}%-12s${RESET} %s running / %s total containers\n" "Docker:" "$running" "$total"
+                printf "${CYAN}%-13s${RESET} ${GREEN}%s running${RESET} / %s total containers\n" "Docker:" "$running" "$total"
             fi
         fi
     fi
@@ -324,9 +333,9 @@ fi
 alias ll='ls -alFh'
 alias la='ls -A'
 alias l='ls -CF'
-alias lt='ls -alFht'      # Sort by modification time, newest first
-alias ltr='ls -alFhtr'    # Sort by modification time, oldest first
-alias lS='ls -alFhS'      # Sort by size, largest first
+alias lt='ls -alFht'       # Sort by modification time, newest first
+alias ltr='ls -alFhtr'     # Sort by modification time, oldest first
+alias lS='ls -alFhS'       # Sort by size, largest first
 
 # Safety aliases to prompt before overwriting.
 alias rm='rm -i'
@@ -339,7 +348,7 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
-alias -- -='cd -'          # Go to previous directory
+alias -- -='cd -'           # Go to previous directory
 alias ~='cd ~'
 alias h='history'
 alias c='clear'
@@ -348,8 +357,8 @@ alias reload='source ~/.bashrc && echo "Bashrc reloaded!"'
 alias path='echo -e ${PATH//:/\\n}'  # Print PATH on separate lines
 
 # Enhanced directory listing.
-alias lsd='ls -d */'      # List only directories
-alias lsf='ls -p | grep -v /'  # List only files
+alias lsd='ls -d */ 2>/dev/null'      # List only directories
+alias lsf='ls -p | grep -v /'         # List only files
 
 # System resource aliases.
 alias df='df -h'
@@ -388,31 +397,184 @@ if command -v git &>/dev/null; then
     alias gp='git push'
     alias gl='git log --oneline --graph --decorate'
     alias gd='git diff'
+    alias gb='git branch'
+    alias gco='git checkout'
 fi
 
-# Docker shortcuts (if docker is available).
+# --- Docker Shortcuts and Functions ---
 if command -v docker &>/dev/null; then
     # Core Docker aliases
+    alias d='docker'
     alias dps='docker ps'
     alias dpsa='docker ps -a'
+    alias dpsq='docker ps -q'
     alias di='docker images'
+    alias dv='docker volume ls'
+    alias dn='docker network ls'
     alias dex='docker exec -it'
     alias dlog='docker logs -f'
-    alias dstop='echo "This will stop all containers. Use: docker stop \$(docker ps -q)"'
-    alias dclean='docker system prune -af'
-
-    # Docker Compose aliases (check if the compose plugin exists)
-    if docker compose version &>/dev/null; then
+    alias dins='docker inspect'
+    alias drm='docker rm'
+    alias drmi='docker rmi'
+    alias dpull='docker pull'
+    
+    # Docker system management
+    alias dprune='docker system prune -f'
+    alias dprunea='docker system prune -af'
+    alias ddf='docker system df'
+    alias dvprune='docker volume prune -f'
+    alias diprune='docker image prune -af'
+    
+    # Docker stats
+    alias dstats='docker stats --no-stream'
+    alias dstatsa='docker stats'
+    alias dtop='docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"'
+    
+    # Safe stop all (shows command instead of executing)
+    alias dstopall='echo "To stop all containers, run: docker stop \$(docker ps -q)"'
+    
+    # Docker Compose v2 aliases (check if the compose plugin exists)
+    if docker compose version &>/dev/null 2>&1; then
+        alias dc='docker compose'
         alias dcup='docker compose up -d'
         alias dcdown='docker compose down'
         alias dclogs='docker compose logs -f'
         alias dcps='docker compose ps'
         alias dcex='docker compose exec'
         alias dcbuild='docker compose build'
+        alias dcbn='docker compose build --no-cache'
         alias dcrestart='docker compose restart'
         alias dcrecreate='docker compose up -d --force-recreate'
         alias dcpull='docker compose pull'
+        alias dcstop='docker compose stop'
+        alias dcstart='docker compose start'
+        alias dcconfig='docker compose config'
+        alias dcvalidate='docker compose config --quiet && echo "✓ docker-compose.yml is valid" || echo "✗ docker-compose.yml has errors"'
     fi
+    
+    # --- Docker Functions ---
+    
+    # Enter container shell (bash or sh fallback)
+    dsh() {
+        if [ -z "$1" ]; then
+            echo "Usage: dsh <container-name-or-id>" >&2
+            return 1
+        fi
+        docker exec -it "$1" bash 2>/dev/null || docker exec -it "$1" sh
+    }
+    
+    # Docker Compose enter shell (bash or sh fallback)
+    dcsh() {
+        if [ -z "$1" ]; then
+            echo "Usage: dcsh <service-name>" >&2
+            return 1
+        fi
+        docker compose exec "$1" bash 2>/dev/null || docker compose exec "$1" sh
+    }
+    
+    # Follow logs for a specific container with tail
+    dfollow() {
+        if [ -z "$1" ]; then
+            echo "Usage: dfollow <container-name-or-id> [lines]" >&2
+            return 1
+        fi
+        local lines="${2:-100}"
+        docker logs -f --tail "$lines" "$1"
+    }
+    
+    # Show container IP addresses
+    dip() {
+        if [ -z "$1" ]; then
+            docker ps -q | xargs -I {} docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' {} 2>/dev/null
+        else
+            docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$1" 2>/dev/null
+        fi
+    }
+    
+    # Show bind mounts for containers
+    dbinds() {
+        if [ -z "$1" ]; then
+            # Show all running containers' bind mounts
+            printf "\n${GREEN}Container Bind Mounts:${RESET}\n"
+            printf "═══════════════════════════════════════════════════════════════\n"
+            docker ps --format '{{.Names}}' | while read container; do
+                printf "\n\033[1;32m%s\033[0m:\n" "$container"
+                docker inspect "$container" --format '{{range .Mounts}}{{if eq .Type "bind"}}  {{.Source}} → {{.Destination}}{{println}}{{end}}{{end}}' 2>/dev/null
+            done
+            printf "\n"
+        else
+            # Show specific container's bind mounts
+            printf "\nBind mounts for %s:\n" "$1"
+            docker inspect "$1" --format '{{range .Mounts}}{{if eq .Type "bind"}}  {{.Source}} → {{.Destination}}{{println}}{{end}}{{end}}' 2>/dev/null
+        fi
+    }
+    
+    # Show disk usage by containers
+    dsize() {
+        printf "\n%-40s %s\n" "Container" "Size"
+        printf "═══════════════════════════════════════════════════════════════\n"
+        docker ps -a --format '{{.Names}}' | while read container; do
+            size=$(docker ps -a --filter "name=^${container}$" --format "{{.Size}}" 2>/dev/null)
+            printf "%-40s %s\n" "$container" "$size"
+        done
+        printf "\n"
+    }
+    
+    # Restart a compose service and follow logs
+    dcreload() {
+        if [ -z "$1" ]; then
+            echo "Usage: dcreload <service-name>" >&2
+            return 1
+        fi
+        docker compose restart "$1" && docker compose logs -f "$1"
+    }
+    
+    # Update and restart a single compose service
+    dcupdate() {
+        if [ -z "$1" ]; then
+            echo "Usage: dcupdate <service-name>" >&2
+            return 1
+        fi
+        docker compose pull "$1" && docker compose up -d "$1" && docker compose logs -f "$1"
+    }
+    
+    # Show Docker Compose services status with detailed info
+    dcstatus() {
+        printf "\n=== Docker Compose Services ===\n\n"
+        docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+        printf "\n=== Resource Usage ===\n\n"
+        docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
+        printf "\n"
+    }
+    
+    # Watch Docker Compose logs for specific service with grep
+    dcgrep() {
+        if [ -z "$1" ] || [ -z "$2" ]; then
+            echo "Usage: dcgrep <service-name> <search-pattern>" >&2
+            return 1
+        fi
+        docker compose logs -f "$1" | grep --color=auto -i "$2"
+    }
+    
+    # Show environment variables for a container
+    denv() {
+        if [ -z "$1" ]; then
+            echo "Usage: denv <container-name-or-id>" >&2
+            return 1
+        fi
+        docker inspect "$1" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sort
+    }
+    
+    # Remove all stopped containers
+    drmall() {
+        local containers=$(docker ps -aq -f status=exited 2>/dev/null)
+        if [ -n "$containers" ]; then
+            docker rm $containers
+            echo "Removed all stopped containers"
+        else
+            echo "No stopped containers to remove"
+        fi
+    }
 fi
 
 # Systemd shortcuts.
@@ -423,6 +585,7 @@ if command -v systemctl &>/dev/null; then
     alias sysstatus='sudo systemctl status'
     alias sysenable='sudo systemctl enable'
     alias sysdisable='sudo systemctl disable'
+    alias sysreload='sudo systemctl daemon-reload'
 fi
 
 # Apt aliases for Debian/Ubuntu (only if apt is available).
@@ -433,6 +596,7 @@ if command -v apt &>/dev/null; then
     alias aptsearch='apt search'
     alias aptshow='apt show'
     alias aptclean='sudo apt autoremove && sudo apt autoclean'
+    alias aptlist='apt list --installed'
 fi
 
 # --- PATH Configuration ---
@@ -467,28 +631,24 @@ if [ -f ~/.bashrc.local ]; then
     . ~/.bashrc.local
 fi
 
-# --- Welcome message for SSH sessions ---
+# --- Welcome Message for SSH Sessions ---
 # Show system info and context on login for SSH sessions.
 if [ -n "$SSH_CONNECTION" ]; then
     # Use the existing sysinfo function for a full system overview.
     sysinfo
 
-    # Correctly display the *actual* last login by skipping the current session.
-    # `last | sed -n '2p'` intelligently grabs the second line of output.
-    last_login_info=$(last "$USER" | sed -n '2p')
-    if [ -n "$last_login_info" ]; then
-        # The output from `last` already includes IP, date, and duration.
-        printf "Last login: %s\n" "$(echo "$last_login_info" | sed 's/  */ /g')"
-    fi
+    # Display previous login information (skip current session)
+    last_login=$(last -1 -R "$USER" 2>/dev/null | sed -n '2p' | awk '{$1=""; print}' | xargs)
+    [ -n "$last_login" ] && printf "Last login: %s\n" "$last_login"
 
-    # Add other useful at-a-glance information.
-    printf "Users online: %s\n" "$(who | wc -l)"
-    printf -- "-----------------------------------------------------\n"
+    # Show active sessions
+    printf "Active sessions: %s\n" "$(who | wc -l)"
+    printf -- "-----------------------------------------------------\n\n"
 fi
-
 
 # --- Performance Note ---
 # This configuration is optimized for performance using built-in bash operations
 # and minimizing external command calls. If startup feels slow, check:
 # - ~/.bash_aliases and ~/.bashrc.local for expensive operations
 # - Consider moving rarely-used functions to separate files
+# - Use 'time bash -i -c exit' to measure startup time
