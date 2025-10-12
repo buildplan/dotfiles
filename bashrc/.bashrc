@@ -534,7 +534,9 @@ if command -v docker &>/dev/null; then
     # Docker stats
     alias dstats='docker stats --no-stream'
     alias dstatsa='docker stats'
-    alias dtop='docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"'
+    dtop() {
+        docker stats --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}'
+    }
 
     # Safe stop all (shows command instead of executing)
     alias dstopall='echo "To stop all containers, run: docker stop \$(docker ps -q)"'
@@ -642,9 +644,9 @@ dcupdate() {
 # Show Docker Compose services status with detailed info
 dcstatus() {
     printf "\n=== Docker Compose Services ===\n\n"
-    docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+    docker compose ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}' # Add quotes
     printf "\n=== Resource Usage ===\n\n"
-    docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
+    docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}' # Add quotes
     printf "\n"
 }
 
@@ -671,6 +673,8 @@ drmall() {
     # Using the modern, direct command
     docker container prune -f
 }
+
+fi
 
 # Systemd shortcuts.
 if command -v systemctl &>/dev/null; then
