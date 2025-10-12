@@ -257,21 +257,29 @@ sysinfo() {
     # --- Header ---
     printf "\n${BOLD_WHITE}=== System Information ===${RESET}\n"
 
+    # --- Get CPU Info (Multi-architecture support) ---
+    local cpu_info
+    cpu_info=$(lscpu | grep 'Model name:' | sed 's/Model name:[ \t]*//' 2>/dev/null)
+    if [ -z "$cpu_info" ]; then
+        cpu_info=$(grep 'model name' /proc/cpuinfo | head -n 1 | cut -d ':' -f 2 | xargs 2>/dev/null)
+    fi
+    if [ -z "$cpu_info" ]; then
+        cpu_info=$(grep '^Model' /proc/cpuinfo | head -n 1 | cut -d ':' -f 2 | xargs 2>/dev/null)
+    fi
+
     # --- System Info ---
     printf "${CYAN}%-12s${RESET} %s\n" "Hostname:" "$(hostname)"
     printf "${CYAN}%-12s${RESET} %s\n" "OS:" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2)"
     printf "${CYAN}%-12s${RESET} %s\n" "Kernel:" "$(uname -r)"
     printf "${CYAN}%-12s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime)"
     printf "${CYAN}%-12s${RESET} %s\n" "Server time:" "$(date)"
-    printf "${CYAN}%-12s${RESET} %s\n" "CPU:" "$(grep -m 1 -E "^(model name|Model|Hardware)" /proc/cpuinfo | cut -d: -f2 | xargs)"
+    printf "${CYAN}%-12s${RESET} %s\n" "CPU:" "$cpu_info"
     printf "${CYAN}%-12s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
     printf "${CYAN}%-12s${RESET} %s\n" "Disk:" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
 
     # --- Conditional Info: Updates and Reboot Status ---
-    # Check for a pending reboot first (high priority).
     if [ -f /var/run/reboot-required ]; then
         printf "${CYAN}%-12s${RESET} ${BOLD_RED}REBOOT REQUIRED${RESET}\n" "System:"
-    # If no reboot is needed, check for package updates using the standard file.
     elif [ -r /var/lib/update-notifier/updates-available ]; then
         updates=$(grep -c "packages can be updated" /var/lib/update-notifier/updates-available)
         if [ "$updates" -gt 0 ]; then
