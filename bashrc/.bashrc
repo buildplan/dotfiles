@@ -263,7 +263,7 @@ sysinfo() {
     printf "${CYAN}%-12s${RESET} %s\n" "Kernel:" "$(uname -r)"
     printf "${CYAN}%-12s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime)"
     printf "${CYAN}%-12s${RESET} %s\n" "Server time:" "$(date)"
-    printf "${CYAN}%-12s${RESET} %s\n" "CPU:" "$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs)"
+    printf "${CYAN}%-12s${RESET} %s\n" "CPU:" "$(grep -m 1 -E "^(model name|Model|Hardware)" /proc/cpuinfo | cut -d: -f2 | xargs)"
     printf "${CYAN}%-12s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
     printf "${CYAN}%-12s${RESET} %s\n" "Disk:" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
 
