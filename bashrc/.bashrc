@@ -1,7 +1,8 @@
+# shellcheck shell=bash
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 2.1
+#   Version: 2.5
 #   Last Updated: 2025-10-12
 # ===================================================================
 
@@ -93,7 +94,7 @@ fi
 # --- Prompt Configuration ---
 # Set variable identifying the chroot you work in (used in the prompt below).
 if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
-    debian_chroot=$(cat /etc/debian_chroot)
+    debian_chroot=$(</etc/debian_chroot)
 fi
 
 # Set a colored prompt only if the terminal has color capability.
@@ -125,22 +126,24 @@ __prompt_status() {
     fi
 }
 
-# Ensure __prompt_status runs first in PROMPT_COMMAND without duplication
-case ";$PROMPT_COMMAND;" in
-  *";__prompt_status;"*) ;;
-  *) PROMPT_COMMAND="__prompt_status; ${PROMPT_COMMAND}";;
-esac
+# Ensure __prompt_status runs first without duplication
+if [[ $PROMPT_COMMAND != *__prompt_status* ]]; then
+  PROMPT_COMMAND="__prompt_status${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+fi
 
 # Prompt: wrap only the color codes with \[ \], leave the text in ${PS1_ERR}
+# shellcheck disable=SC2016
 if [ "$color_prompt" = yes ]; then
     PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\[\e[33m\]$(parse_git_branch)\[\e[0m\]\[\e[31m\]${PS1_ERR}\[\e[0m\]\$ '
 else
+    # shellcheck disable=SC2016
     PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w${PS1_ERR}\$ '
 fi
 
 # Set the terminal window title to user@host:dir for supported terminals.
 case "$TERM" in
   xterm*|rxvt*|xterm-kitty|alacritty|wezterm)
+    # shellcheck disable=SC2139
     PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
     ;;
   *)
@@ -372,6 +375,19 @@ sysinfo() {
     printf "\n"
 }
 
+# Check for available updates
+checkupdates() {
+    if [ -x /usr/lib/update-notifier/apt-check ]; then
+        echo "Checking for updates..."
+        /usr/lib/update-notifier/apt-check --human-readable
+    elif command -v apt &>/dev/null; then
+        apt list --upgradable 2>/dev/null
+    else
+        echo "No package manager found"
+        return 1
+    fi
+}
+
 # --- Aliases ---
 # Enable color support for common commands.
 if [ -x /usr/bin/dircolors ]; then
@@ -380,8 +396,8 @@ if [ -x /usr/bin/dircolors ]; then
     alias dir='dir --color=auto'
     alias vdir='vdir --color=auto'
     alias grep='grep --color=auto'
-    alias fgrep='fgrep --color=auto'
-    alias egrep='egrep --color=auto'
+    alias egrep='grep -E --color=auto'
+    alias fgrep='grep -F --color=auto'
     alias diff='diff --color=auto'
     alias ip='ip --color=auto'
 fi
@@ -411,11 +427,15 @@ alias h='history'
 alias c='clear'
 alias cls='clear'
 alias reload='source ~/.bashrc && echo "Bashrc reloaded!"'
-alias path='echo -e ${PATH//:/\\n}'  # Print PATH on separate lines
+
+# PATH printer as a function (portable, no echo -e)
+path() {
+    printf '%s\n' "${PATH//:/$'\n'}"
+}
 
 # Enhanced directory listing.
 alias lsd='ls -d */ 2>/dev/null'      # List only directories
-alias lsf='ls -p | grep -v /'         # List only files
+alias lsf='find . -maxdepth 1 -type f -printf "%f\n"'
 
 # System resource helpers.
 alias df='df -h'
@@ -562,7 +582,7 @@ if command -v docker &>/dev/null; then
         if [ -z "$1" ]; then
             printf "\n\033[1;32mContainer Bind Mounts:\033[0m\n"
             printf "═══════════════════════════════════════════════════════════════\n"
-            docker ps --format '{{.Names}}' | while read container; do
+            docker ps --format '{{.Names}}' | while IFS= read -r container; do
                 printf "\n\033[1;32m%s\033[0m:\n" "$container"
                 docker inspect "$container" --format '{{range .Mounts}}{{if eq .Type "bind"}}  {{.Source}} → {{.Destination}}{{println}}{{end}}{{end}}' 2>/dev/null
             done
@@ -628,13 +648,11 @@ if command -v docker &>/dev/null; then
 
     # Remove all stopped containers
     drmall() {
-        local containers
-        containers=$(docker ps -aq -f status=exited 2>/dev/null)
-        if [ -n "$containers" ]; then
-            docker rm $containers
-            echo "Removed all stopped containers"
+        docker ps -aq -f status=exited 2>/dev/null | xargs -r docker rm
+        if [ "${PIPESTATUS[0]}" -eq 0 ]; then
+            echo "Removed all stopped containers (if any)"
         else
-            echo "No stopped containers to remove"
+            echo "No stopped containers to remove or error occurred"
         fi
     }
 fi
