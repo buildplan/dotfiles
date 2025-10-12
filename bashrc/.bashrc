@@ -733,6 +733,18 @@ if [ -n "$SSH_CONNECTION" ]; then
 fi
 
 # --- Help System ---
+# Preserve Bash's builtin `help` while integrating bashhelp
+unalias help 2>/dev/null
+help() {
+  case "${1:-}" in
+    ""|all|navigation|files|system|docker|git|network)
+      bashhelp "$@"
+      ;;
+    *)
+      builtin help "$@"
+      ;;
+  esac
+}
 # Display all custom functions and aliases with descriptions
 bashhelp() {
     local category="${1:-all}"
