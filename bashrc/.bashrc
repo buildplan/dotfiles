@@ -208,7 +208,7 @@ extract() {
             *.7z)        7z x "$1"         ;;
             *.deb)       ar x "$1"         ;;
             *.tar.zst)
-                if command -v zstd &>/dev/null; then; zstd -dc "$1" | tar xf -;
+                if command -v zstd &>/dev/null; then; zstd -dc "$1" | tar xf -
                 else; tar --zstd -xf "$1"; fi ;;
             *)          echo "'$1' cannot be extracted via extract()" ;;
         esac
