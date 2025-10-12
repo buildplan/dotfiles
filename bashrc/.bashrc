@@ -393,11 +393,23 @@ if [ -f ~/.bashrc.local ]; then
 fi
 
 # --- Welcome message for SSH sessions ---
-# Show system info on login for SSH sessions.
+# Show system info and context on login for SSH sessions.
 if [ -n "$SSH_CONNECTION" ]; then
-    printf "\nWelcome to %s\n" "$(hostname)"
-    last_login=$(last -1 -R "$USER" 2>/dev/null | head -n 1 | awk '{print $4, $5, $6, $7}')
-    [ -n "$last_login" ] && printf "Last login: %s\n\n" "$last_login"
+    # Use the existing sysinfo function for a full system overview.
+    sysinfo
+
+    # Correctly display the *actual* last login by skipping the current session.
+    # `last | sed -n '2p'` intelligently grabs the second line of output.
+    last_login_info=$(last "$USER" | sed -n '2p')
+    if [ -n "$last_login_info" ]; then
+        # The output from `last` already includes IP, date, and duration.
+        printf "Last login: %s\n" "$(echo "$last_login_info" | sed 's/  */ /g')"
+    fi
+
+    # Add other useful at-a-glance information.
+    printf "Users online: %s\n" "$(who | wc -l)"
+    printf "Server time:  %s\n" "$(date)"
+    printf -- "-----------------------------------------------------\n"
 fi
 
 
