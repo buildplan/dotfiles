@@ -18,7 +18,8 @@ shopt -s histappend
 HISTSIZE=10000
 HISTFILESIZE=20000
 # Save history immediately and reload from other sessions.
-PROMPT_COMMAND="history -a; history -n"
+# Safely appends to PROMPT_COMMAND to avoid overwriting other scripts' settings.
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND; }history -a; history -n"
 # Allow editing of commands recalled from history.
 shopt -s histverify
 # Add timestamp to history entries for audit trail.
@@ -40,20 +41,26 @@ shopt -s dirspell 2>/dev/null
 shopt -s cmdhist 2>/dev/null
 # Case-insensitive globbing for pathname expansion.
 # shopt -s nocaseglob 2>/dev/null
+
+# Set command-line editing mode. Emacs (default) or Vi.
+set -o emacs
+# For vi keybindings, uncomment the following line and comment the one above:
+# set -o vi
+
 # Make `less` more friendly for non-text input files.
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
 
 # --- Better Less Configuration ---
-# Make less more friendly - X prevents screen clear, F quits if one screen, R shows colors.
+# Make less more friendly - R shows colors, F quits if one screen, X prevents screen clear.
 export LESS='-R -F -X -i -M -w'
 # Colored man pages using less.
-export LESS_TERMCAP_mb=$'\e[1;31m'     # begin bold
-export LESS_TERMCAP_md=$'\e[1;36m'     # begin blink
-export LESS_TERMCAP_me=$'\e[0m'        # reset bold/blink
+export LESS_TERMCAP_mb=$'\e[1;31m'      # begin bold
+export LESS_TERMCAP_md=$'\e[1;36m'      # begin blink
+export LESS_TERMCAP_me=$'\e[0m'         # reset bold/blink
 export LESS_TERMCAP_so=$'\e[01;44;33m' # begin reverse video
-export LESS_TERMCAP_se=$'\e[0m'        # reset reverse video
-export LESS_TERMCAP_us=$'\e[1;32m'     # begin underline
-export LESS_TERMCAP_ue=$'\e[0m'        # reset underline
+export LESS_TERMCAP_se=$'\e[0m'         # reset reverse video
+export LESS_TERMCAP_us=$'\e[1;32m'      # begin underline
+export LESS_TERMCAP_ue=$'\e[0m'         # reset underline
 
 # --- Terminal & SSH Compatibility Fixes ---
 # Handle Kitty terminal over SSH - fallback to xterm-256color if terminfo unavailable.
@@ -91,9 +98,14 @@ if [ -z "${color_prompt}" ] && [ -x /usr/bin/tput ] && tput setaf 1 &>/dev/null;
     color_prompt=yes
 fi
 
+# Function to get git branch for prompt (defined here before PS1 is set).
+parse_git_branch() {
+    git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
+}
+
 if [ "$color_prompt" = yes ]; then
-    # Green: user@host, Blue: directory, Red: error indicator, White: prompt symbol.
-    export PS1='\[\e[32m\]\u@\h\[\e[00m\]:\[\e[34m\]\w\[\e[00m\]$([ $? != 0 ] && echo "\[\e[31m\] ✗\[\e[00m\]")\$ '
+    # Green: user@host, Blue: directory, Yellow: git branch, Red: error indicator, White: prompt symbol.
+    export PS1='\[\e[32m\]\u@\h\[\e[00m\]:\[\e[34m\]\w\[\e[00m\]\[\e[33m\]$(parse_git_branch)\[\e[00m\]$([ $? != 0 ] && echo "\[\e[31m\] ✗\[\e[00m\]")\$ '
 else
     export PS1='\u@\h:\w\$ '
 fi
@@ -136,10 +148,12 @@ mkcd() {
 # Create a backup of a file with timestamp.
 backup() {
     if [ -f "$1" ]; then
-        cp "$1" "$1.backup-$(date +%Y%m%d-%H%M%S)"
-        echo "Backup created: $1.backup-$(date +%Y%m%d-%H%M%S)"
+        local backup_file="$1.backup-$(date +%Y%m%d-%H%M%S)"
+        cp "$1" "$backup_file"
+        echo "Backup created: $backup_file"
     else
-        echo "'$1' is not a valid file"
+        echo "'$1' is not a valid file" >&2
+        return 1
     fi
 }
 
@@ -147,19 +161,19 @@ backup() {
 extract() {
     if [ -f "$1" ]; then
         case "$1" in
-            *.tar.bz2)   tar xjf "$1"     ;;
-            *.tar.gz)    tar xzf "$1"     ;;
-            *.tar.xz)    tar xJf "$1"     ;;
-            *.bz2)       bunzip2 "$1"     ;;
-            *.rar)       unrar x "$1"     ;;
-            *.gz)        gunzip "$1"      ;;
-            *.tar)       tar xf "$1"      ;;
-            *.tbz2)      tar xjf "$1"     ;;
-            *.tgz)       tar xzf "$1"     ;;
-            *.zip)       unzip "$1"       ;;
-            *.Z)         uncompress "$1"  ;;
-            *.7z)        7z x "$1"        ;;
-            *.deb)       ar x "$1"        ;;
+            *.tar.bz2)   tar xjf "$1"      ;;
+            *.tar.gz)    tar xzf "$1"      ;;
+            *.tar.xz)    tar xJf "$1"      ;;
+            *.bz2)       bunzip2 "$1"      ;;
+            *.rar)       unrar x "$1"      ;;
+            *.gz)        gunzip "$1"       ;;
+            *.tar)       tar xf "$1"       ;;
+            *.tbz2)      tar xjf "$1"      ;;
+            *.tgz)       tar xzf "$1"      ;;
+            *.zip)       unzip "$1"        ;;
+            *.Z)         uncompress "$1"   ;;
+            *.7z)        7z x "$1"         ;;
+            *.deb)       ar x "$1"         ;;
             *.tar.zst)   tar --zstd -xf "$1" ;;
             *)           echo "'$1' cannot be extracted via extract()" ;;
         esac
@@ -249,9 +263,9 @@ fi
 alias ll='ls -alFh'
 alias la='ls -A'
 alias l='ls -CF'
-alias lt='ls -alFht'     # Sort by modification time, newest first
-alias ltr='ls -alFhtr'   # Sort by modification time, oldest first
-alias lS='ls -alFhS'     # Sort by size, largest first
+alias lt='ls -alFht'      # Sort by modification time, newest first
+alias ltr='ls -alFhtr'    # Sort by modification time, oldest first
+alias lS='ls -alFhS'      # Sort by size, largest first
 
 # Safety aliases to prompt before overwriting.
 alias rm='rm -i'
@@ -264,7 +278,7 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
-alias -- -='cd -'        # Go to previous directory
+alias -- -='cd -'          # Go to previous directory
 alias ~='cd ~'
 alias h='history'
 alias c='clear'
@@ -273,7 +287,7 @@ alias reload='source ~/.bashrc && echo "Bashrc reloaded!"'
 alias path='echo -e ${PATH//:/\\n}'  # Print PATH on separate lines
 
 # Enhanced directory listing.
-alias lsd='ls -d */'     # List only directories
+alias lsd='ls -d */'      # List only directories
 alias lsf='ls -p | grep -v /'  # List only files
 
 # System resource aliases.
