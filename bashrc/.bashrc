@@ -239,6 +239,7 @@ sysinfo() {
     printf "OS: %s\n" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2)"
     printf "Kernel: %s\n" "$(uname -r)"
     printf "Uptime: %s\n" "$(uptime -p 2>/dev/null || uptime)"
+    printf "Server time:  %s\n" "$(date)"
     printf "CPU: %s\n" "$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs)"
     printf "Memory: %s\n" "$(free -h | awk '/^Mem:/ {print $3 " / " $2}')"
     printf "Disk: %s\n" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
@@ -437,7 +438,6 @@ if [ -n "$SSH_CONNECTION" ]; then
 
     # Add other useful at-a-glance information.
     printf "Users online: %s\n" "$(who | wc -l)"
-    printf "Server time:  %s\n" "$(date)"
     printf -- "-----------------------------------------------------\n"
 fi
 
