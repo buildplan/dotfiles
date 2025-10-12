@@ -119,18 +119,25 @@ parse_git_branch() {
 __prompt_status() {
     local rc=$?
     if (( rc != 0 )); then
-        PS1_STATUS="\[\e[31m\] ✗\[\e[0m\]"
+        PS1_ERR=" ✗"
     else
-        PS1_STATUS=""
+        PS1_ERR=""
     fi
 }
 
+# Ensure __prompt_status runs first in PROMPT_COMMAND without duplication
+case ";$PROMPT_COMMAND;" in
+  *";__prompt_status;"*) ;;
+  *) PROMPT_COMMAND="__prompt_status; ${PROMPT_COMMAND}";;
+esac
+
+# Prompt: wrap only the color codes with \[ \], leave the text in ${PS1_ERR}
 if [ "$color_prompt" = yes ]; then
-    # Green: user@host, Blue: directory, Yellow: git branch, Red: error indicator, White: prompt symbol.
-    export PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[00m\]:\[\e[34m\]\w\[\e[00m\]\[\e[33m\]$(parse_git_branch)\[\e[00m\]${PS1_STATUS}\$ '
+    PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\[\e[33m\]$(parse_git_branch)\[\e[0m\]\[\e[31m\]${PS1_ERR}\[\e[0m\]\$ '
 else
-    export PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w${PS1_STATUS}\$ '
+    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\[\e[31m\]${PS1_ERR}\[\e[0m\]\$ '
 fi
+
 
 # Ensure __prompt_status runs first in PROMPT_COMMAND without duplication.
 case ";$PROMPT_COMMAND;" in
@@ -422,6 +429,8 @@ alias df='df -h'
 alias du='du -h'
 alias free='free -h'
 # psgrep as a function to accept patterns reliably
+# Ensure no alias conflict before defining the function
+unalias psgrep 2>/dev/null
 psgrep() {
     if [ $# -eq 0 ]; then
         echo "Usage: psgrep <pattern>" >&2
