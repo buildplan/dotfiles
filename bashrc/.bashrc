@@ -346,6 +346,7 @@ fi
 
 # Docker shortcuts (if docker is available).
 if command -v docker &>/dev/null; then
+    # Core Docker aliases
     alias dps='docker ps'
     alias dpsa='docker ps -a'
     alias di='docker images'
@@ -353,6 +354,19 @@ if command -v docker &>/dev/null; then
     alias dlog='docker logs -f'
     alias dstop='echo "This will stop all containers. Use: docker stop \$(docker ps -q)"'
     alias dclean='docker system prune -af'
+
+    # Docker Compose aliases (check if the compose plugin exists)
+    if docker compose version &>/dev/null; then
+        alias dcup='docker compose up -d'
+        alias dcdown='docker compose down'
+        alias dclogs='docker compose logs -f'
+        alias dcps='docker compose ps'
+        alias dcex='docker compose exec'
+        alias dcbuild='docker compose build'
+        alias dcrestart='docker compose restart'
+        alias dcrecreate='docker compose up -d --force-recreate'
+        alias dcpull='docker compose pull'
+    fi
 fi
 
 # Systemd shortcuts.
