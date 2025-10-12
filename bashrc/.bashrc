@@ -288,19 +288,44 @@ sysinfo() {
     printf "${CYAN}%-13s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {print $3 " / " $2 " (" int($3/$2 * 100) "% used)"}')"
     printf "${CYAN}%-13s${RESET} %s\n" "Disk (/):" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
 
-    # --- Conditional Info: Updates and Reboot Status ---
+    # --- Reboot Status ---
     if [ -f /var/run/reboot-required ]; then
         printf "${CYAN}%-13s${RESET} ${BOLD_RED}⚠ REBOOT REQUIRED${RESET}\n" "System:"
     fi
     
-    if [ -r /var/lib/update-notifier/updates-available ]; then
-        local total=$(grep "packages can be updated" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
-        local security=$(grep "security updates" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
-        if [ -n "$total" ] && [ "$total" -gt 0 ]; then
-            if [ -n "$security" ] && [ "$security" -gt 0 ]; then
-                printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
-            else
-                printf "${CYAN}%-13s${RESET} %s packages available\n" "Updates:" "$total"
+    # --- Available Updates (Improved Detection) ---
+    if command -v apt-get &>/dev/null; then
+        # Method 1: Try update-notifier file first (fast)
+        if [ -r /var/lib/update-notifier/updates-available ]; then
+            local total=$(grep "packages can be updated" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
+            local security=$(grep "security updates" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
+            
+            if [ -n "$total" ] && [ "$total" -gt 0 ]; then
+                if [ -n "$security" ] && [ "$security" -gt 0 ]; then
+                    printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
+                else
+                    printf "${CYAN}%-13s${RESET} %s packages available\n" "Updates:" "$total"
+                fi
+            fi
+        else
+            # Method 2: Direct APT check (more reliable but slower)
+            # Only do this check if apt lists are recent (within last 24 hours)
+            local apt_lists_age=0
+            if [ -d /var/lib/apt/lists ]; then
+                apt_lists_age=$(find /var/lib/apt/lists -type f -name '*Packages' -mtime -1 | wc -l)
+            fi
+            
+            if [ "$apt_lists_age" -gt 0 ]; then
+                local upgradable=$(apt list --upgradable 2>/dev/null | grep -c "upgradable")
+                if [ "$upgradable" -gt 0 ]; then
+                    # Count security updates
+                    local security_count=$(apt list --upgradable 2>/dev/null | grep -ci "security")
+                    if [ "$security_count" -gt 0 ]; then
+                        printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$upgradable" "$security_count"
+                    else
+                        printf "${CYAN}%-13s${RESET} %s packages available\n" "Updates:" "$upgradable"
+                    fi
+                fi
             fi
         fi
     fi
