@@ -2,7 +2,7 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 2.5
+#   Version: 2.6
 #   Last Updated: 2025-10-12
 # ===================================================================
 
@@ -429,6 +429,7 @@ alias cls='clear'
 alias reload='source ~/.bashrc && echo "Bashrc reloaded!"'
 
 # PATH printer as a function (portable, no echo -e)
+unalias path 2>/dev/null
 path() {
     printf '%s\n' "${PATH//:/$'\n'}"
 }
