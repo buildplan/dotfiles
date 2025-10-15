@@ -313,8 +313,7 @@ sysinfo() {
 
     # --- CPU Info ---
     local cpu_info
-    cpu_info=$(lscpu | awk -F: '/Model name/ {print $2; exit}' | xargs)
-    [ -z "$cpu_info" ] && cpu_info=$(grep -m1 'model name' /proc/cpuinfo | cut -d ':' -f2 | xargs)
+    cpu_info=$(lscpu | awk -F: '/Model name/ {print $2; exit}' | xargs || grep -m1 'model name' /proc/cpuinfo | cut -d ':' -f2 | xargs)
     [ -z "$cpu_info" ] && cpu_info="Unknown"
 
     # --- IP Detection (preferred interfaces first) ---
@@ -323,8 +322,7 @@ sysinfo() {
         ip_addr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
         [ -n "$ip_addr" ] && break
     done
-    [ -z "$ip_addr" ] && ip_addr=$(hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i !~ /^(127\.|172\.17|10\.0\.|192\.168)/) {print $i; exit}}')
-    [ -z "$ip_addr" ] && ip_addr=$(hostname -I 2>/dev/null | awk '{print $1}')
+    [ -z "$ip_addr" ] && ip_addr=$(ip -4 addr show scope global | awk '/inet/ {print $2}' | cut -d/ -f1 | head -n1)
 
     # --- System Info ---
     if [ -n "$ip_addr" ]; then
@@ -343,44 +341,49 @@ sysinfo() {
     # --- Reboot Status ---
     if [ -f /var/run/reboot-required ]; then
         printf "${CYAN}%-15s${RESET} ${BOLD_RED}⚠ REBOOT REQUIRED${RESET}\n" "System:"
-        if [ -s /var/run/reboot-required.pkgs ]; then
-            echo -n "               "
-            printf "${YELLOW}Reason:${RESET} "
-            paste -sd ' ' /var/run/reboot-required.pkgs
-            echo -e "\n"
-        fi
+        [ -s /var/run/reboot-required.pkgs ] && printf "               Reason: %s\n" "$(paste -sd ' ' /var/run/reboot-required.pkgs)"
     fi
 
     # --- Available Updates (APT) ---
     if command -v apt-get &>/dev/null; then
         local total security
+        local upgradable_all upgradable_list security_list
         if [ -x /usr/lib/update-notifier/apt-check ]; then
             IFS=';' read -r total security < <(/usr/lib/update-notifier/apt-check 2>/dev/null)
         elif [ -r /var/lib/update-notifier/updates-available ]; then
             total=$(awk '/packages can be updated/ {print $1}' /var/lib/update-notifier/updates-available)
             security=$(awk '/security updates/ {print $1}' /var/lib/update-notifier/updates-available)
         else
-            # fallback to apt list
             total=$(apt list --upgradable 2>/dev/null | grep -c upgradable)
             security=$(apt list --upgradable 2>/dev/null | grep -ci security)
         fi
+
         if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
+            printf "${CYAN}%-15s${RESET} " "Updates:"
             if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
-                printf "${CYAN}%-15s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
+                printf "${YELLOW}%s packages (%s security)${RESET}\n" "$total" "$security"
             else
-                printf "${CYAN}%-15s${RESET} %s packages available\n" "Updates:" "$total"
+                printf "%s packages available\n" "$total"
             fi
+
+            # List upgradable packages (up to 5) and highlight security
+            mapfile -t upgradable_all < <(apt list --upgradable 2>/dev/null | tail -n +2)
+            upgradable_list=$(printf "%s\n" "${upgradable_all[@]}" | head -n5 | awk -F/ '{print $1}')
+            security_list=$(printf "%s\n" "${upgradable_all[@]}" | grep -i security | head -n5 | awk -F/ '{print $1}')
+
+            [ -n "$upgradable_list" ] && printf "               Upgradable: %s" "$(echo "$upgradable_list" | paste -sd ', ')"
+            [ "$total" -gt 5 ] && printf " ... (+%s more)\n" $((total - 5)) || printf "\n"
+            [ -n "$security_list" ] && printf "               ${YELLOW}Security: %s${RESET}" "$(echo "$security_list" | paste -sd ', ')"
+            [ "$security" -gt 5 ] && printf " ... (+%s more)\n" $((security - 5)) || printf "\n"
         fi
     fi
 
     # --- Docker Info ---
     if command -v docker &>/dev/null; then
-        local docker_ps
-        docker_ps=$(docker ps -a --format '{{.State}}' 2>/dev/null)
-        if [ -n "$docker_ps" ]; then
-            local running total
-            total=$(echo "$docker_ps" | wc -l)
-            running=$(echo "$docker_ps" | grep -c '^running$' || echo "0")
+        mapfile -t docker_states < <(docker ps -a --format '{{.State}}' 2>/dev/null)
+        total=${#docker_states[@]}
+        if (( total > 0 )); then
+            running=$(printf "%s\n" "${docker_states[@]}" | grep -c '^running$')
             printf "${CYAN}%-15s${RESET} ${GREEN}%s running${RESET} / %s total containers\n" "Docker:" "$running" "$total"
         fi
     fi
