@@ -2,8 +2,8 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 0.6
-#   Last Updated: 2025-10-12
+#   Version: 0.7
+#   Last Updated: 2025-10-15
 # ===================================================================
 
 # If not running interactively, don't do anything.
@@ -323,7 +323,26 @@ sysinfo() {
     [ -z "$cpu_info" ] && cpu_info="Unknown"
 
     # --- System Info ---
-    printf "${CYAN}%-13s${RESET} %s\n" "Hostname:" "$(hostname)"
+    local ip_addr
+    # Try main interfaces in order of preference
+    for iface in eth0 wlan0 ens33 eno1 enp0s3 enp3s0; do
+        ip_addr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
+        if [ -n "$ip_addr" ]; then
+            break
+        fi
+    done
+    # Fallback: first non-local IP if no preferred iface found
+    if [ -z "$ip_addr" ]; then
+        ip_addr=$(hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i !~ /^(127\.|172\.17|10\.0\.|192\.168)/) {print $i; exit}}')
+    fi
+    # Fallback: first IP if still empty
+    [ -z "$ip_addr" ] && ip_addr=$(hostname -I 2>/dev/null | awk '{print $1}')
+    # Print hostname with optional IP
+    if [ -n "$ip_addr" ]; then
+        printf "${CYAN}%-13s${RESET} %s  ${YELLOW}[%s]${RESET}\n" "Hostname:" "$(hostname)" "$ip_addr"
+    else
+        printf "${CYAN}%-13s${RESET} %s\n" "Hostname:" "$(hostname)"
+    fi
     printf "${CYAN}%-13s${RESET} %s\n" "OS:" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 || echo 'Unknown')"
     printf "${CYAN}%-13s${RESET} %s\n" "Kernel:" "$(uname -r)"
     printf "${CYAN}%-13s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime | sed 's/.*up //' | sed 's/,.*//')"
@@ -335,6 +354,12 @@ sysinfo() {
     # --- Reboot Status ---
     if [ -f /var/run/reboot-required ]; then
         printf "${CYAN}%-13s${RESET} ${BOLD_RED}⚠ REBOOT REQUIRED${RESET}\n" "System:"
+        if [ -s /var/run/reboot-required.pkgs ]; then
+            echo -n "               "
+            printf "${YELLOW}Reason:${RESET} "
+            tr '\n' ' ' < /var/run/reboot-required.pkgs
+            echo -e "\n"
+        fi
     fi
 
     # --- Available Updates (Prefer apt-check when present) ---
@@ -386,13 +411,16 @@ sysinfo() {
     fi
 
     # --- Docker Info ---
-    if command -v docker &>/dev/null && docker info &>/dev/null; then
-        if docker_states=$(docker ps -a --format '{{.State}}' 2>/dev/null); then
+    if command -v docker &>/dev/null; then
+        # Only if Docker daemon is reachable
+        if docker info &>/dev/null; then
             local running total
-            running=$(echo "$docker_states" | grep -c '^running$' || echo "0")
-            total=$(echo "$docker_states" | wc -l)
-            if [ "$total" -gt 0 ]; then
-                printf "${CYAN}%-13s${RESET} ${GREEN}%s running${RESET} / %s total containers\n" "Docker:" "$running" "$total"
+            mapfile -t docker_states < <(docker ps -a --format '{{.State}}' 2>/dev/null)
+            total=${#docker_states[@]}
+            if (( total > 0 )); then
+                running=$(printf "%s\n" "${docker_states[@]}" | grep -c '^running$' || echo "0")
+                printf "${CYAN}%-13s${RESET} ${GREEN}%s running${RESET} / %s total containers\n" \
+                    "Docker:" "$running" "$total"
             fi
         fi
     fi
