@@ -349,7 +349,6 @@ sysinfo() {
     if command -v apt-get &>/dev/null; then
         local total security
         local upgradable_all upgradable_list security_list
-
         if [ -x /usr/lib/update-notifier/apt-check ]; then
             IFS=';' read -r total security < <(/usr/lib/update-notifier/apt-check 2>/dev/null)
         elif [ -r /var/lib/update-notifier/updates-available ]; then
@@ -359,7 +358,6 @@ sysinfo() {
             total=$(apt list --upgradable 2>/dev/null | grep -c upgradable)
             security=$(apt list --upgradable 2>/dev/null | grep -ci security)
         fi
-
         if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
             printf "${CYAN}%-15s${RESET} " "Updates:"
             if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
@@ -367,13 +365,10 @@ sysinfo() {
             else
                 printf "%s packages available\n" "$total"
             fi
-
-            # List upgradable packages (up to 5) and highlight security
+            # List upgradable packages (up to 5)
             mapfile -t upgradable_all < <(apt list --upgradable 2>/dev/null | tail -n +2)
             upgradable_list=$(printf "%s\n" "${upgradable_all[@]}" | head -n5 | awk -F/ '{print $1}')
             security_list=$(printf "%s\n" "${upgradable_all[@]}" | grep -i security | head -n5 | awk -F/ '{print $1}')
-
-            # Print aligned dimmed lists
             [ -n "$upgradable_list" ] && printf "               ${DIM}%-10s${RESET} %s" "Upgradable:" "$(echo "$upgradable_list" | paste -sd ', ')"
             [ "$total" -gt 5 ] && printf " ... (+%s more)\n" $((total - 5)) || printf "\n"
             [ -n "$security_list" ] && printf "               ${DIM}%-10s${RESET} ${YELLOW}%s${RESET}" "Security:" "$(echo "$security_list" | paste -sd ', ')"
