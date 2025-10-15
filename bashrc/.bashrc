@@ -285,7 +285,7 @@ histop() {
     history | awk '{CMD[$2]++;count++;}END { for (a in CMD)print CMD[a] " " CMD[a]/count*100 "% " a;}' | grep -v "./" | column -c3 -s " " -t | sort -nr | nl | head -n20
 }
 
-# Quick server info display.
+# Quick server info display
 sysinfo() {
     # --- Self-Contained Color Detection ---
     local color_support=""
@@ -305,125 +305,86 @@ sysinfo() {
         local GREEN='\e[1;32m'
         local RESET='\e[0m'
     else
-        local CYAN=''; local YELLOW=''; local BOLD_RED=''; local BOLD_WHITE=''; local GREEN=''; local RESET=''
+        local CYAN='' YELLOW='' BOLD_RED='' BOLD_WHITE='' GREEN='' RESET=''
     fi
 
     # --- Header ---
     printf "\n${BOLD_WHITE}=== System Information ===${RESET}\n"
 
-    # --- Get CPU Info (Multi-architecture support) ---
+    # --- CPU Info ---
     local cpu_info
-    cpu_info=$(lscpu | grep 'Model name:' | sed 's/Model name:[ \t]*//' 2>/dev/null)
-    if [ -z "$cpu_info" ]; then
-        cpu_info=$(grep 'model name' /proc/cpuinfo | head -n 1 | cut -d ':' -f 2 | xargs 2>/dev/null)
-    fi
-    if [ -z "$cpu_info" ]; then
-        cpu_info=$(grep '^Model' /proc/cpuinfo | head -n 1 | cut -d ':' -f 2 | xargs 2>/dev/null)
-    fi
+    cpu_info=$(lscpu | awk -F: '/Model name/ {print $2; exit}' | xargs)
+    [ -z "$cpu_info" ] && cpu_info=$(grep -m1 'model name' /proc/cpuinfo | cut -d ':' -f2 | xargs)
     [ -z "$cpu_info" ] && cpu_info="Unknown"
 
-    # --- System Info ---
+    # --- IP Detection (preferred interfaces first) ---
     local ip_addr
-    # Try main interfaces in order of preference
     for iface in eth0 wlan0 ens33 eno1 enp0s3 enp3s0; do
         ip_addr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
-        if [ -n "$ip_addr" ]; then
-            break
-        fi
+        [ -n "$ip_addr" ] && break
     done
-    # Fallback: first non-local IP if no preferred iface found
-    if [ -z "$ip_addr" ]; then
-        ip_addr=$(hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i !~ /^(127\.|172\.17|10\.0\.|192\.168)/) {print $i; exit}}')
-    fi
-    # Fallback: first IP if still empty
+    [ -z "$ip_addr" ] && ip_addr=$(hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i !~ /^(127\.|172\.17|10\.0\.|192\.168)/) {print $i; exit}}')
     [ -z "$ip_addr" ] && ip_addr=$(hostname -I 2>/dev/null | awk '{print $1}')
-    # Print hostname with optional IP
+
+    # --- System Info ---
     if [ -n "$ip_addr" ]; then
-        printf "${CYAN}%-13s${RESET} %s  ${YELLOW}[%s]${RESET}\n" "Hostname:" "$(hostname)" "$ip_addr"
+        printf "${CYAN}%-15s${RESET} %s  ${YELLOW}[%s]${RESET}\n" "Hostname:" "$(hostname)" "$ip_addr"
     else
-        printf "${CYAN}%-13s${RESET} %s\n" "Hostname:" "$(hostname)"
+        printf "${CYAN}%-15s${RESET} %s\n" "Hostname:" "$(hostname)"
     fi
-    printf "${CYAN}%-13s${RESET} %s\n" "OS:" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 || echo 'Unknown')"
-    printf "${CYAN}%-13s${RESET} %s\n" "Kernel:" "$(uname -r)"
-    printf "${CYAN}%-13s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime | sed 's/.*up //' | sed 's/,.*//')"
-    printf "${CYAN}%-13s${RESET} %s\n" "Server time:" "$(date '+%Y-%m-%d %H:%M:%S %Z')"
-    printf "${CYAN}%-13s${RESET} %s\n" "CPU:" "$cpu_info"
-    printf "${CYAN}%-13s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {print $3 " / " $2 " (" int($3/$2 * 100) "% used)"}')"
-    printf "${CYAN}%-13s${RESET} %s\n" "Disk (/):" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
+    printf "${CYAN}%-15s${RESET} %s\n" "OS:" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 || echo 'Unknown')"
+    printf "${CYAN}%-15s${RESET} %s\n" "Kernel:" "$(uname -r)"
+    printf "${CYAN}%-15s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime | sed 's/.*up //' | sed 's/,.*//')"
+    printf "${CYAN}%-15s${RESET} %s\n" "Server time:" "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+    printf "${CYAN}%-15s${RESET} %s\n" "CPU:" "$cpu_info"
+    printf "${CYAN}%-15s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {printf "%s / %s (%d%% used)", $3, $2, $3/$2*100}')"
+    printf "${CYAN}%-15s${RESET} %s\n" "Disk (/):" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
 
     # --- Reboot Status ---
     if [ -f /var/run/reboot-required ]; then
-        printf "${CYAN}%-13s${RESET} ${BOLD_RED}⚠ REBOOT REQUIRED${RESET}\n" "System:"
+        printf "${CYAN}%-15s${RESET} ${BOLD_RED}⚠ REBOOT REQUIRED${RESET}\n" "System:"
         if [ -s /var/run/reboot-required.pkgs ]; then
             echo -n "               "
             printf "${YELLOW}Reason:${RESET} "
-            tr '\n' ' ' < /var/run/reboot-required.pkgs
+            paste -sd ' ' /var/run/reboot-required.pkgs
             echo -e "\n"
         fi
     fi
 
-    # --- Available Updates (Prefer apt-check when present) ---
+    # --- Available Updates (APT) ---
     if command -v apt-get &>/dev/null; then
-        # Method 0: Use apt-check from update-notifier-common if available
+        local total security
         if [ -x /usr/lib/update-notifier/apt-check ]; then
             IFS=';' read -r total security < <(/usr/lib/update-notifier/apt-check 2>/dev/null)
-            if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
-                if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
-                    printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
-                else
-                    printf "${CYAN}%-13s${RESET} %s packages available\n" "Updates:" "$total"
-                fi
-            fi
-        # Method 1: update-notifier drop file (fast)
         elif [ -r /var/lib/update-notifier/updates-available ]; then
-            local total security
-            total=$(grep "packages can be updated" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
-            security=$(grep "security updates" /var/lib/update-notifier/updates-available 2>/dev/null | awk '{print $1}')
-            if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
-                if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
-                    printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
-                else
-                    printf "${CYAN}%-13s${RESET} %s packages available\n" "Updates:" "$total"
-                fi
-            fi
+            total=$(awk '/packages can be updated/ {print $1}' /var/lib/update-notifier/updates-available)
+            security=$(awk '/security updates/ {print $1}' /var/lib/update-notifier/updates-available)
         else
-            # Method 2: apt list fallback (only if lists are recent)
-            local apt_lists_age=0
-            if [ -d /var/lib/apt/lists ]; then
-                apt_lists_age=$(find /var/lib/apt/lists -maxdepth 1 -type f -name '*Packages' -mtime -1 2>/dev/null | wc -l)
-            fi
-            if [ "$apt_lists_age" -gt 0 ]; then
-                local upgradable_list
-                upgradable_list=$(apt list --upgradable 2>/dev/null)
-                local upgradable
-                upgradable=$(echo "$upgradable_list" | grep -c "upgradable")
-                if [ "$upgradable" -gt 0 ]; then
-                    local security_count
-                    security_count=$(echo "$upgradable_list" | grep -ci "security")
-                    if [ "$security_count" -gt 0 ]; then
-                        printf "${CYAN}%-13s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$upgradable" "$security_count"
-                    else
-                        printf "${CYAN}%-13s${RESET} %s packages available\n" "Updates:" "$upgradable"
-                    fi
-                fi
+            # fallback to apt list
+            total=$(apt list --upgradable 2>/dev/null | grep -c upgradable)
+            security=$(apt list --upgradable 2>/dev/null | grep -ci security)
+        fi
+        if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
+            if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
+                printf "${CYAN}%-15s${RESET} ${YELLOW}%s packages (%s security)${RESET}\n" "Updates:" "$total" "$security"
+            else
+                printf "${CYAN}%-15s${RESET} %s packages available\n" "Updates:" "$total"
             fi
         fi
     fi
 
     # --- Docker Info ---
     if command -v docker &>/dev/null; then
-        # Only if Docker daemon is reachable
-        if docker info &>/dev/null; then
+        local docker_ps
+        docker_ps=$(docker ps -a --format '{{.State}}' 2>/dev/null)
+        if [ -n "$docker_ps" ]; then
             local running total
-            mapfile -t docker_states < <(docker ps -a --format '{{.State}}' 2>/dev/null)
-            total=${#docker_states[@]}
-            if (( total > 0 )); then
-                running=$(printf "%s\n" "${docker_states[@]}" | grep -c '^running$' || echo "0")
-                printf "${CYAN}%-13s${RESET} ${GREEN}%s running${RESET} / %s total containers\n" \
-                    "Docker:" "$running" "$total"
-            fi
+            total=$(echo "$docker_ps" | wc -l)
+            running=$(echo "$docker_ps" | grep -c '^running$' || echo "0")
+            printf "${CYAN}%-15s${RESET} ${GREEN}%s running${RESET} / %s total containers\n" "Docker:" "$running" "$total"
         fi
     fi
+
     printf "\n"
 }
 
