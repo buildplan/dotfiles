@@ -766,10 +766,9 @@ bashhelp() {
         all|"")
             cat << 'EOF'
 
-╔═══════════════════════════════════════════════════════════════════╗
-║           Universal Bashrc - Quick Reference Guide                ║
-║                        Version 0.6                                ║
-╚═══════════════════════════════════════════════════════════════════╝
+╔════════════════════════════════════════════════════════╗
+║           .bashrc - Quick Reference                    ║
+╚════════════════════════════════════════════════════════╝
 
 Usage: bashhelp [category]
 Categories: navigation, files, system, docker, git, network
