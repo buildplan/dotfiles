@@ -303,9 +303,10 @@ sysinfo() {
         local BOLD_RED='\e[1;31m'
         local BOLD_WHITE='\e[1;37m'
         local GREEN='\e[1;32m'
+        local DIM='\e[2m'
         local RESET='\e[0m'
     else
-        local CYAN='' YELLOW='' BOLD_RED='' BOLD_WHITE='' GREEN='' RESET=''
+        local CYAN='' YELLOW='' BOLD_RED='' BOLD_WHITE='' GREEN='' DIM='' RESET=''
     fi
 
     # --- Header ---
@@ -348,6 +349,7 @@ sysinfo() {
     if command -v apt-get &>/dev/null; then
         local total security
         local upgradable_all upgradable_list security_list
+
         if [ -x /usr/lib/update-notifier/apt-check ]; then
             IFS=';' read -r total security < <(/usr/lib/update-notifier/apt-check 2>/dev/null)
         elif [ -r /var/lib/update-notifier/updates-available ]; then
@@ -371,9 +373,10 @@ sysinfo() {
             upgradable_list=$(printf "%s\n" "${upgradable_all[@]}" | head -n5 | awk -F/ '{print $1}')
             security_list=$(printf "%s\n" "${upgradable_all[@]}" | grep -i security | head -n5 | awk -F/ '{print $1}')
 
-            [ -n "$upgradable_list" ] && printf "               Upgradable: %s" "$(echo "$upgradable_list" | paste -sd ', ')"
+            # Print aligned dimmed lists
+            [ -n "$upgradable_list" ] && printf "               ${DIM}%-10s${RESET} %s" "Upgradable:" "$(echo "$upgradable_list" | paste -sd ', ')"
             [ "$total" -gt 5 ] && printf " ... (+%s more)\n" $((total - 5)) || printf "\n"
-            [ -n "$security_list" ] && printf "               ${YELLOW}Security: %s${RESET}" "$(echo "$security_list" | paste -sd ', ')"
+            [ -n "$security_list" ] && printf "               ${DIM}%-10s${RESET} ${YELLOW}%s${RESET}" "Security:" "$(echo "$security_list" | paste -sd ', ')"
             [ "$security" -gt 5 ] && printf " ... (+%s more)\n" $((security - 5)) || printf "\n"
         fi
     fi
