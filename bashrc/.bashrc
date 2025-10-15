@@ -342,7 +342,8 @@ sysinfo() {
     # --- Reboot Status ---
     if [ -f /var/run/reboot-required ]; then
         printf "${CYAN}%-15s${RESET} ${BOLD_RED}⚠ REBOOT REQUIRED${RESET}\n" "System:"
-        [ -s /var/run/reboot-required.pkgs ] && printf "               Reason: %s\n" "$(paste -sd ' ' /var/run/reboot-required.pkgs)"
+        [ -s /var/run/reboot-required.pkgs ] && \
+            printf "               ${DIM}Reason:${RESET} %s\n" "$(paste -sd ' ' /var/run/reboot-required.pkgs)"
     fi
 
     # --- Available Updates (APT) ---
@@ -358,6 +359,7 @@ sysinfo() {
             total=$(apt list --upgradable 2>/dev/null | grep -c upgradable)
             security=$(apt list --upgradable 2>/dev/null | grep -ci security)
         fi
+
         if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
             printf "${CYAN}%-15s${RESET} " "Updates:"
             if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
@@ -365,13 +367,18 @@ sysinfo() {
             else
                 printf "%s packages available\n" "$total"
             fi
-            # List upgradable packages (up to 5)
+
+            # List upgradable packages (up to 5) and highlight security
             mapfile -t upgradable_all < <(apt list --upgradable 2>/dev/null | tail -n +2)
             upgradable_list=$(printf "%s\n" "${upgradable_all[@]}" | head -n5 | awk -F/ '{print $1}')
             security_list=$(printf "%s\n" "${upgradable_all[@]}" | grep -i security | head -n5 | awk -F/ '{print $1}')
-            [ -n "$upgradable_list" ] && printf "               ${DIM}%-10s${RESET} %s" "Upgradable:" "$(echo "$upgradable_list" | paste -sd ', ')"
+
+            [ -n "$upgradable_list" ] && \
+                printf "               ${DIM}Upgradable:${RESET} %s" "$(echo "$upgradable_list" | paste -sd ', ')"
             [ "$total" -gt 5 ] && printf " ... (+%s more)\n" $((total - 5)) || printf "\n"
-            [ -n "$security_list" ] && printf "               ${DIM}%-10s${RESET} ${YELLOW}%s${RESET}" "Security:" "$(echo "$security_list" | paste -sd ', ')"
+
+            [ -n "$security_list" ] && \
+                printf "               ${YELLOW}Security:${RESET} %s" "$(echo "$security_list" | paste -sd ', ')"
             [ "$security" -gt 5 ] && printf " ... (+%s more)\n" $((security - 5)) || printf "\n"
         fi
     fi
