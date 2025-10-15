@@ -767,7 +767,7 @@ bashhelp() {
             cat << 'EOF'
 
 ╔════════════════════════════════════════════════════════╗
-║           .bashrc - Quick Reference                    ║
+║               .bashrc - Quick Reference                ║
 ╚════════════════════════════════════════════════════════╝
 
 Usage: bashhelp [category]
