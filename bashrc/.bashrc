@@ -113,43 +113,53 @@ parse_git_branch() {
     return 0  # Always return success to not pollute $?
 }
 
-# This single function handles all pre-prompt tasks and dynamically builds PS1.
-__bash_prompt_command() {
-    local rc=$? # Capture the exit status of the last command immediately.
+# --- Function to parse git branch only if in a git repo ---
+parse_git_branch() {
+    if git rev-parse --git-dir &>/dev/null; then
+        git branch 2>/dev/null | sed -n '/^\*/s/* \(.*\)/\1/p'
+    fi
+    return 0
+}
 
-    # Append this session's history and reload history from other sessions.
+# --- Main prompt command function ---
+__bash_prompt_command() {
+    local rc=$?  # Capture last command exit status
     history -a
     history -n
 
-    # --- Build Dynamic Prompt Components ---
-    local prompt_err=""
-    local prompt_git=""
+    # --- Initialize prompt components ---
+    local prompt_err="" prompt_git="" prompt_jobs="" prompt_venv=""
+    local git_branch job_count
 
-    # 1. Create the error status component ONLY if the last command failed.
-    if (( rc != 0 )); then
-        prompt_err="\[\e[31m\] ✗\[\e[0m\]" # Red cross for an error
-    fi
+    # Error indicator
+    (( rc != 0 )) && prompt_err="\[\e[31m\]✗\[\e[0m\]"
 
-    # 2. Create the git component ONLY if we are in a git repository.
-    # We capture the output of the function into a variable.
-    local git_branch
+    # Git branch (dim yellow)
     git_branch=$(parse_git_branch)
-    if [[ -n "$git_branch" ]]; then
-        # If the function returned text (i.e., we're in a repo), format it with color.
-        prompt_git="\[\e[33m\]${git_branch}\[\e[0m\]"
-    fi
+    [[ -n "$git_branch" ]] && prompt_git="\[\e[2;33m\]($git_branch)\[\e[0m\]"
 
-    # --- Assemble the Final PS1 ---
-    # This now cleanly combines the static parts with our dynamic components.
+    # Background jobs (cyan)
+    job_count=$(jobs -p | wc -l)
+    (( job_count > 0 )) && prompt_jobs="\[\e[36m\]⚡${job_count}\[\e[0m\]"
+
+    # Python virtualenv (dim green)
+    [[ -n "$VIRTUAL_ENV" ]] && prompt_venv="\[\e[2;32m\][${VIRTUAL_ENV##*/}]\[\e[0m\]"
+
+    # Ensure spacing between components
+    [[ -n "$prompt_venv" ]] && prompt_venv=" $prompt_venv"
+    [[ -n "$prompt_git" ]] && prompt_git=" $prompt_git"
+    [[ -n "$prompt_jobs" ]] && prompt_jobs=" $prompt_jobs"
+    [[ -n "$prompt_err" ]] && prompt_err=" $prompt_err"
+
+    # --- Assemble PS1 ---
     if [ "$color_prompt" = yes ]; then
-        PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]'"${prompt_git}${prompt_err}"' \$ '
+        PS1='${debian_chroot:+($debian_chroot)}\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]'"${prompt_venv}${prompt_git}${prompt_jobs}${prompt_err}"' \$ '
     else
-        # Non-colored version
-        PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w'"${git_branch}${prompt_err}"' \$ '
+        PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w'"${prompt_venv}${git_branch}${prompt_jobs}${prompt_err}"' \$ '
     fi
 }
 
-# Set PROMPT_COMMAND to run our function before each prompt.
+# --- Activate dynamic prompt ---
 PROMPT_COMMAND=__bash_prompt_command
 
 # Set the terminal window title to user@host:dir for supported terminals.
