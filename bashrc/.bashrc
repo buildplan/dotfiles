@@ -104,15 +104,6 @@ if [ -z "${color_prompt}" ] && [ -x /usr/bin/tput ] && tput setaf 1 &>/dev/null;
     color_prompt=yes
 fi
 
-# Function to get git branch for prompt (optimized to only run in git repos).
-parse_git_branch() {
-    # Only run in git repositories for performance.
-    if git rev-parse --git-dir &>/dev/null; then
-        git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
-    fi
-    return 0  # Always return success to not pollute $?
-}
-
 # --- Function to parse git branch only if in a git repo ---
 parse_git_branch() {
     if git rev-parse --git-dir &>/dev/null; then
@@ -157,20 +148,17 @@ __bash_prompt_command() {
     else
         PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w'"${prompt_venv}${git_branch}${prompt_jobs}${prompt_err}"' \$ '
     fi
+
+    # --- Set Terminal Window Title ---
+    case "$TERM" in
+      xterm*|rxvt*|xterm-kitty|alacritty|wezterm)
+        PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+        ;;
+    esac
 }
 
 # --- Activate dynamic prompt ---
 PROMPT_COMMAND=__bash_prompt_command
-
-# Set the terminal window title to user@host:dir for supported terminals.
-case "$TERM" in
-  xterm*|rxvt*|xterm-kitty|alacritty|wezterm)
-    # shellcheck disable=SC2139
-    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
-    ;;
-  *)
-    ;;
-esac
 
 # --- Editor Configuration ---
 # Set default editor with fallback chain.
