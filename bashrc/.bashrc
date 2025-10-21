@@ -349,15 +349,20 @@ sysinfo() {
         local total security
         local upgradable_all upgradable_list security_list
         if [ -x /usr/lib/update-notifier/apt-check ]; then
-            IFS=';' read -r total security < <(/usr/lib/update-notifier/apt-check 2>/dev/null)
+            local apt_check_output
+            apt_check_output=$(/usr/lib/update-notifier/apt-check 2>/dev/null)
+            total="${apt_check_output%%;*}"
+            security="${apt_check_output##*;}"
         elif [ -r /var/lib/update-notifier/updates-available ]; then
-            total=$(awk '/packages can be updated/ {print $1}' /var/lib/update-notifier/updates-available)
-            security=$(awk '/security updates/ {print $1}' /var/lib/update-notifier/updates-available)
+            total=$(awk '/[0-9]+ (update|package)s? can be (updated|applied|installed)/ {print $1; exit}' /var/lib/update-notifier/updates-available 2>/dev/null)
+            security=$(awk '/[0-9]+ (update|package)s? .*security/ {print $1; exit}' /var/lib/update-notifier/updates-available 2>/dev/null)
         else
             total=$(apt list --upgradable 2>/dev/null | grep -c upgradable)
             security=$(apt list --upgradable 2>/dev/null | grep -ci security)
         fi
 
+        total="${total:-0}"
+        security="${security:-0}"
         if [ -n "$total" ] && [ "$total" -gt 0 ] 2>/dev/null; then
             printf "${CYAN}%-15s${RESET} " "Updates:"
             if [ -n "$security" ] && [ "$security" -gt 0 ] 2>/dev/null; then
