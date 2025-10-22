@@ -334,7 +334,13 @@ sysinfo() {
     printf "${CYAN}%-15s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime | sed 's/.*up //' | sed 's/,.*//')"
     printf "${CYAN}%-15s${RESET} %s\n" "Server time:" "$(date '+%Y-%m-%d %H:%M:%S %Z')"
     printf "${CYAN}%-15s${RESET} %s\n" "CPU:" "$cpu_info"
-    printf "${CYAN}%-15s${RESET} %s\n" "Memory:" "$(free -h | awk '/^Mem:/ {printf "%s / %s (%d%% used)", $3, $2, $3/$2*100}')"
+    printf "${CYAN}%-15s${RESET} " "Memory:"
+    free -m | awk '/Mem/ {
+        used = $3; total = $2; percent = int((used/total)*100);
+        if (used >= 1024) { used_fmt = sprintf("%.1fGi", used/1024); } else { used_fmt = sprintf("%dMi", used); }
+        if (total >= 1024) { total_fmt = sprintf("%.1fGi", total/1024); } else { total_fmt = sprintf("%dMi", total); }
+        printf "%s / %s (%d%% used)\n", used_fmt, total_fmt, percent;
+    }'
     printf "${CYAN}%-15s${RESET} %s\n" "Disk (/):" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
 
     # --- Reboot Status ---
