@@ -481,7 +481,21 @@ checkupdates() {
 }
 
 # Disk space alert (warns if any partition > 80%)
-diskcheck() { df -h | awk '$5 > 80 {print "⚠️  "$0}'; }
+diskcheck() {
+    df -h | awk '
+        NR > 1 {
+            usage = $5
+            gsub(/%/, "", usage)
+            if (usage > 80) {
+                printf "⚠️  %s\n", $0
+                found = 1
+            }
+        }
+        END {
+            if (!found) print "✓ All disks below 80%"
+        }
+    '
+}
 
 # Directory bookmarks
 export MARKPATH=$HOME/.marks
