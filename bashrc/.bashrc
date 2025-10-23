@@ -480,6 +480,33 @@ checkupdates() {
     fi
 }
 
+# Disk space alert (warns if any partition > 80%)
+diskcheck() { df -h | awk '$5 > 80 {print "⚠️  "$0}'; }
+
+# Directory bookmarks
+export MARKPATH=$HOME/.marks
+[ -d "$MARKPATH" ] || mkdir -p "$MARKPATH"
+mark() { ln -sfn "$(pwd)" "$MARKPATH/${1:-$(basename "$PWD")}"; }
+jump() { cd -P "$MARKPATH/$1" 2>/dev/null || ls -l "$MARKPATH"; }
+
+# Service status shortcut (cleaner output)
+svc() { sudo systemctl status "$1" --no-pager -l | head -20; }
+alias failed='systemctl --failed --no-pager'
+
+# Show top 10 processes by CPU
+topcpu() { ps aux --sort=-%cpu | head -11; }
+
+# Show top 10 processes by memory  
+topmem() { ps aux --sort=-%mem | head -11; }
+
+# Network connections summary
+netsum() {
+    echo "=== Active Connections ==="
+    ss -s
+    echo -e "\n=== Listening Ports ==="
+    sudo ss -tulnp | grep LISTEN | awk '{print $5, $7}' | sort -u
+}
+
 # --- Aliases ---
 # Enable color support for common commands.
 if [ -x /usr/bin/dircolors ]; then
@@ -578,19 +605,6 @@ alias timestamp='date +%s'
 alias count='find . -type f | wc -l'  # Count files in current directory
 alias cpv='rsync -ah --info=progress2'  # Copy with progress
 alias wget='wget -c'  # Resume wget by default
-
-# Disk space alert (warns if any partition > 80%)
-diskcheck() { df -h | awk '$5 > 80 {print "⚠️  "$0}'; }
-
-# Directory bookmarks
-export MARKPATH=$HOME/.marks
-[ -d "$MARKPATH" ] || mkdir -p "$MARKPATH"
-mark() { ln -sfn "$(pwd)" "$MARKPATH/${1:-$(basename "$PWD")}"; }
-jump() { cd -P "$MARKPATH/$1" 2>/dev/null || ls -l "$MARKPATH"; }
-
-# Service status shortcut (cleaner output)
-svc() { sudo systemctl status "$1" --no-pager -l | head -20; }
-alias failed='systemctl --failed --no-pager'
 
 # Git shortcuts (if git is available).
 if command -v git &>/dev/null; then
