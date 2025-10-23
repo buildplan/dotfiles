@@ -257,6 +257,9 @@ ftext() {
     grep -rnw . -e "$1" 2>/dev/null
 }
 
+# Search history easily
+hgrep() { history | grep -i --color=auto "$@"; }
+
 # Create a tarball of a directory.
 targz() {
     if [ -d "$1" ]; then
@@ -499,6 +502,9 @@ alias lt='ls -alFht'       # Sort by modification time, newest first
 alias ltr='ls -alFhtr'     # Sort by modification time, oldest first
 alias lS='ls -alFhS'       # Sort by size, largest first
 
+# Last command with sudo
+alias please='sudo $(history -p !!)'
+
 # Safety aliases to prompt before overwriting.
 alias rm='rm -i'
 alias cp='cp -i'
@@ -558,6 +564,7 @@ alias myip='curl -s ifconfig.me || curl -s icanhazip.com' # Alternatives: api.ip
 localip() {
     ip -4 addr | awk '/inet/ {print $2}' | cut -d/ -f1 | grep -v '127.0.0.1'
 }
+
 alias netstat='ss'
 alias ping='ping -c 5'
 alias fastping='ping -c 100 -i 0.2'
@@ -571,6 +578,19 @@ alias timestamp='date +%s'
 alias count='find . -type f | wc -l'  # Count files in current directory
 alias cpv='rsync -ah --info=progress2'  # Copy with progress
 alias wget='wget -c'  # Resume wget by default
+
+# Disk space alert (warns if any partition > 80%)
+diskcheck() { df -h | awk '$5 > 80 {print "⚠️  "$0}'; }
+
+# Directory bookmarks
+export MARKPATH=$HOME/.marks
+[ -d "$MARKPATH" ] || mkdir -p "$MARKPATH"
+mark() { ln -sfn "$(pwd)" "$MARKPATH/${1:-$(basename "$PWD")}"; }
+jump() { cd -P "$MARKPATH/$1" 2>/dev/null || ls -l "$MARKPATH"; }
+
+# Service status shortcut (cleaner output)
+svc() { sudo systemctl status "$1" --no-pager -l | head -20; }
+alias failed='systemctl --failed --no-pager'
 
 # Git shortcuts (if git is available).
 if command -v git &>/dev/null; then
