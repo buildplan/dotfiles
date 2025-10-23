@@ -315,7 +315,7 @@ sysinfo() {
     cpu_info=$(lscpu | awk -F: '/Model name/ {print $2; exit}' | xargs || grep -m1 'model name' /proc/cpuinfo | cut -d ':' -f2 | xargs)
     [ -z "$cpu_info" ] && cpu_info="Unknown"
 
-    # --- Optimized IP Detection (Fast Version) ---
+    # --- IP Detection ---
     local ip_addr public_ipv4 public_ipv6
 
     # Try to get public IPv4 first - only 2 fast services
