@@ -2,8 +2,8 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 0.7
-#   Last Updated: 2025-10-15
+#   Version: 0.8
+#   Last Updated: 2025-10-23
 # ===================================================================
 
 # If not running interactively, don't do anything.
@@ -315,18 +315,46 @@ sysinfo() {
     cpu_info=$(lscpu | awk -F: '/Model name/ {print $2; exit}' | xargs || grep -m1 'model name' /proc/cpuinfo | cut -d ':' -f2 | xargs)
     [ -z "$cpu_info" ] && cpu_info="Unknown"
 
-    # --- IP Detection (preferred interfaces first) ---
-    local ip_addr
-    for iface in eth0 wlan0 ens33 eno1 enp0s3 enp3s0; do
+    # --- Enhanced IP Detection with Public IP Support ---
+    local ip_addr public_ipv4 public_ipv6
+
+    # Try to get public IPv4 first (prefer IPv4)
+    public_ipv4=$(curl -4 -s -m 3 https://checkip.amazonaws.com 2>/dev/null || \
+                  curl -4 -s -m 3 https://api.ipify.org 2>/dev/null || \
+                  curl -4 -s -m 3 https://icanhazip.com 2>/dev/null || \
+                  curl -4 -s -m 3 https://ifconfig.me 2>/dev/null)
+    # If no IPv4, try IPv6
+    if [ -z "$public_ipv4" ]; then
+        public_ipv6=$(curl -6 -s -m 3 https://ip.network 2>/dev/null || \
+                      curl -6 -s -m 3 https://api64.ipify.org 2>/dev/null || \
+                      curl -6 -s -m 3 https://icanhazip.com 2>/dev/null)
+    fi
+    # Get local/internal IP as fallback
+    for iface in eth0 ens3 enp0s3 enp0s6 wlan0 ens33 eno1; do
         ip_addr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
         [ -n "$ip_addr" ] && break
     done
-    [ -z "$ip_addr" ] && ip_addr=$(ip -4 addr show scope global | awk '/inet/ {print $2}' | cut -d/ -f1 | head -n1)
+    [ -z "$ip_addr" ] && ip_addr=$(ip -4 addr show scope global 2>/dev/null | awk '/inet/ {print $2}' | cut -d/ -f1 | head -n1)
 
     # --- System Info ---
-    if [ -n "$ip_addr" ]; then
+    if [ -n "$public_ipv4" ]; then
+        # Show public IPv4 (preferred)
+        printf "${CYAN}%-15s${RESET} %s  ${YELLOW}[%s]${RESET}" "Hostname:" "$(hostname)" "$public_ipv4"
+        # Show local IP if different from public
+        if [ -n "$ip_addr" ] && [ "$ip_addr" != "$public_ipv4" ]; then
+            printf " ${DIM}(local: %s)${RESET}\n" "$ip_addr"
+        else
+            printf "\n"
+        fi
+    elif [ -n "$public_ipv6" ]; then
+        # Show public IPv6 if no IPv4
+        printf "${CYAN}%-15s${RESET} %s  ${YELLOW}[%s]${RESET}" "Hostname:" "$(hostname)" "$public_ipv6"
+        [ -n "$ip_addr" ] && printf " ${DIM}(local: %s)${RESET}\n" "$ip_addr" || printf "\n"
+    elif [ -n "$ip_addr" ]; then
+        # Show local IP only
         printf "${CYAN}%-15s${RESET} %s  ${YELLOW}[%s]${RESET}\n" "Hostname:" "$(hostname)" "$ip_addr"
     else
+        # No IP detected
         printf "${CYAN}%-15s${RESET} %s\n" "Hostname:" "$(hostname)"
     fi
     printf "${CYAN}%-15s${RESET} %s\n" "OS:" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 || echo 'Unknown')"
