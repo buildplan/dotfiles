@@ -319,15 +319,13 @@ sysinfo() {
     local ip_addr public_ipv4 public_ipv6
 
     # Try to get public IPv4 first (prefer IPv4)
-    public_ipv4=$(curl -4 -s -m 3 https://checkip.amazonaws.com 2>/dev/null || \
-                  curl -4 -s -m 3 https://api.ipify.org 2>/dev/null || \
-                  curl -4 -s -m 3 https://icanhazip.com 2>/dev/null || \
-                  curl -4 -s -m 3 https://ifconfig.me 2>/dev/null)
+    public_ipv4=$(curl -4 -s -m 2 --connect-timeout 1 https://checkip.amazonaws.com 2>/dev/null || \
+                  curl -4 -s -m 2 --connect-timeout 1 https://icanhazip.com 2>/dev/null || \
+                  curl -4 -s -m 3 https://api.ipify.org 2>/dev/null)
     # If no IPv4, try IPv6
     if [ -z "$public_ipv4" ]; then
-        public_ipv6=$(curl -6 -s -m 3 https://ip.network 2>/dev/null || \
-                      curl -6 -s -m 3 https://api64.ipify.org 2>/dev/null || \
-                      curl -6 -s -m 3 https://icanhazip.com 2>/dev/null)
+        public_ipv6=$(curl -6 -s -m 2 --connect-timeout 1 https://ip.network 2>/dev/null || \
+                      public_ipv6=$(curl -6 -s -m 2 --connect-timeout 1 https://icanhazip.com 2>/dev/null)
     fi
     # Get local/internal IP as fallback
     for iface in eth0 ens3 enp0s3 enp0s6 wlan0 ens33 eno1; do
