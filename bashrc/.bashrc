@@ -664,7 +664,9 @@ if command -v docker &>/dev/null; then
     }
 
     # Safe stop all (shows command instead of executing)
-    alias dstopall='echo "To stop all containers, run: docker stop \$(docker ps -q)"'
+    alias dstopa='echo "To stop all containers, run: docker stop \$(docker ps -q)"'
+    # Start all stopped containers
+    alias dstarta='docker start $(docker ps -aq)'
 
     # Docker Compose v2 aliases (check if the compose plugin exists)
     if docker compose version &>/dev/null; then
