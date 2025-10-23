@@ -439,6 +439,28 @@ sysinfo() {
         fi
     fi
 
+    # --- Tailscale Info (if installed and connected) ---
+    if command -v tailscale &>/dev/null; then
+        local ts_ipv4 ts_ipv6 ts_hostname
+        # Get Tailscale IPs
+        ts_ipv4=$(tailscale ip -4 2>/dev/null)
+        ts_ipv6=$(tailscale ip -6 2>/dev/null)
+        # Only show if connected
+        if [ -n "$ts_ipv4" ] || [ -n "$ts_ipv6" ]; then
+            # Get hostname from status (FIXED: use head -n1 to get only first line)
+            ts_hostname=$(tailscale status --self --peers=false 2>/dev/null | head -n1 | awk '{print $2}')   
+            printf "${CYAN}%-15s${RESET} " "Tailscale:"
+            printf "${GREEN}Connected${RESET}"
+            [ -n "$ts_ipv4" ] && printf " - %s" "$ts_ipv4"
+            [ -n "$ts_hostname" ] && printf " ${DIM}(%s)${RESET}" "$ts_hostname"
+            printf "\n"
+            # Optional: Show IPv6 on second line if available
+            if [ -n "$ts_ipv6" ]; then
+                printf "                ${DIM}IPv6: %s${RESET}\n" "$ts_ipv6"
+            fi
+        fi
+    fi
+
     printf "\n"
 }
 
