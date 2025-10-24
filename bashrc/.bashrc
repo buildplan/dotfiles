@@ -283,7 +283,7 @@ sizeof() {
 
 # Show most used commands from history.
 histop() {
-    history | awk -v ignorelist="$HISTIGNORE" 'BEGIN{OFS="\t";gsub(/:/,"|",ignorelist);iregex="^("ignorelist")($| )";sregex="(^|\\s)\\./"} {cmd=$4;for(i=5;i<=NF;i++){cmd=cmd " "$i}} (cmd==""||cmd~iregex||cmd~sregex){next} {CMD[cmd]++;count++} END{if(count>0)for(a in CMD)printf "%s\t%.2f%%\t%s\n",CMD[a],(CMD[a]/count*100),a}' | sort -nr | head -n20 | nl -w6 -s $'\t' | sed 's/^[ ]*//' | column -t -s $'\t'
+    history | awk -v ignorelist="$HISTIGNORE" 'BEGIN{OFS="\t";gsub(/:/,"|",ignorelist);iregex="^("ignorelist")($| )";sregex="(^|\\s)\\./"} {cmd=$4;for(i=5;i<=NF;i++){cmd=cmd " "$i}} (cmd==""||cmd~iregex||cmd~sregex){next} {CMD[cmd]++;count++} END{if(count>0)for(a in CMD)printf "%s\t%.2f%%\t%s\n",CMD[a],(CMD[a]/count*100),a}' | sort -nr | head -n20 | nl -w6 -s $'\t' | sed 's/^[ ]*//' | awk 'BEGIN{FS="\t"} { printf "    %-6s %-10s %-10s %s\n", $1, $2, $3, $4 }'
 }
 
 # Quick server info display
