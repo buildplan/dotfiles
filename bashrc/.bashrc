@@ -2,8 +2,8 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 0.8
-#   Last Updated: 2025-10-23
+#   Version: 0.9
+#   Last Updated: 2025-10-24
 # ===================================================================
 
 # If not running interactively, don't do anything.
@@ -283,7 +283,7 @@ sizeof() {
 
 # Show most used commands from history.
 histop() {
-    history | awk '{CMD[$2]++;count++;}END { for (a in CMD)print CMD[a] " " CMD[a]/count*100 "% " a;}' | grep -v "./" | column -c3 -s " " -t | sort -nr | nl | head -n20
+    history | awk '{$1=""; $2=""; $3=""; $0=substr($0, 4)} {CMD[$0]++;count++;} END { for (a in CMD)print CMD[a] " " CMD[a]/count*100 "% " a;}' | grep -v "./" | column -c3 -s " " -t | sort -nr | nl | head -n20
 }
 
 # Quick server info display
@@ -451,7 +451,7 @@ sysinfo() {
         # Only show if connected
         if [ -n "$ts_ipv4" ] || [ -n "$ts_ipv6" ]; then
             # Get hostname from status (FIXED: use head -n1 to get only first line)
-            ts_hostname=$(tailscale status --self --peers=false 2>/dev/null | head -n1 | awk '{print $2}')   
+            ts_hostname=$(tailscale status --self --peers=false 2>/dev/null | head -n1 | awk '{print $2}')
             printf "${CYAN}%-15s${RESET} " "Tailscale:"
             printf "${GREEN}Connected${RESET}"
             [ -n "$ts_ipv4" ] && printf " - %s" "$ts_ipv4"
@@ -510,7 +510,7 @@ alias failed='systemctl --failed --no-pager'
 # Show top 10 processes by CPU
 topcpu() { ps aux --sort=-%cpu | head -11; }
 
-# Show top 10 processes by memory  
+# Show top 10 processes by memory
 topmem() { ps aux --sort=-%mem | head -11; }
 
 # Network connections summary
@@ -842,11 +842,11 @@ fi
 # Enable programmable completion features.
 if ! shopt -oq posix; then
   if [ -f /usr/share/bash-completion/bash_completion ]; then
-    # shellcheck disable=SC1091
-    . /usr/share/bash-completion/bash_completion
+      # shellcheck disable=SC1091
+      . /usr/share/bash-completion/bash_completion
   elif [ -f /etc/bash_completion ]; then
-    # shellcheck disable=SC1091
-    . /etc/bash_completion
+      # shellcheck disable=SC1091
+      . /etc/bash_completion
   fi
 fi
 
@@ -896,179 +896,194 @@ Categories: navigation, files, system, docker, git, network
 ═══════════════════════════════════════════════════════════════════
 📁 NAVIGATION & DIRECTORY
 ═══════════════════════════════════════════════════════════════════
-  ..              Go up one directory
-  ...             Go up two directories
-  ....            Go up three directories
-  .....           Go up four directories
-  -               Go to previous directory
-  ~               Go to home directory
+  ..                Go up one directory
+  ...               Go up two directories
+  ....              Go up three directories
+  .....             Go up four directories
+  -                 Go to previous directory
+  ~                 Go to home directory
 
-  mkcd <dir>      Create directory and cd into it
-  up <n>          Go up N directories (e.g., up 3)
-  path            Display PATH variable (one per line)
+  mkcd <dir>        Create directory and cd into it
+  up <n>            Go up N directories (e.g., up 3)
+  path              Display PATH variable (one per line)
+  mark <name>       Bookmark current directory
+  jump <name>       Jump to a bookmarked directory
 
 ═══════════════════════════════════════════════════════════════════
 📄 FILE OPERATIONS
 ═══════════════════════════════════════════════════════════════════
-  ll              List all files with details (human-readable)
-  la              List all files including hidden
-  l               List files in column format
-  lt              List by time, newest first
-  ltr             List by time, oldest first
-  lS              List by size, largest first
-  lsd             List only directories
-  lsf             List only files
+  ll                List all files with details (human-readable)
+  la                List all files including hidden
+  l                 List files in column format
+  lt                List by time, newest first
+  ltr               List by time, oldest first
+  lS                List by size, largest first
+  lsd               List only directories
+  lsf               List only files
 
-  ff <name>       Find files by name (case-insensitive)
-  fd <name>       Find directories by name (case-insensitive)
-  ftext <text>    Search for text in files recursively
+  ff <name>         Find files by name (case-insensitive)
+  fd <name>         Find directories by name (case-insensitive)
+  ftext <text>      Search for text in files recursively
 
-  extract <file>  Extract any archive (tar, zip, 7z, etc.)
-  targz <dir>     Create tar.gz of directory
-  backup <file>   Create timestamped backup of file
+  extract <file>    Extract any archive (tar, zip, 7z, etc.)
+  targz <dir>       Create tar.gz of directory
+  backup <file>     Create timestamped backup of file
 
-  sizeof <path>   Get size of file or directory
-  duh [path]      Disk usage sorted by size
-  count           Count files in current directory
-  cpv <src> <dst> Copy with progress bar (rsync)
+  sizeof <path>     Get size of file or directory
+  duh [path]        Disk usage sorted by size
+  count             Count files in current directory
+  cpv <src> <dst>   Copy with progress bar (rsync)
 
 ═══════════════════════════════════════════════════════════════════
 💻 SYSTEM & MONITORING
 ═══════════════════════════════════════════════════════════════════
-  sysinfo         Display comprehensive system information
-  checkupdates    Check for available system updates
+  sysinfo           Display comprehensive system information
+  checkupdates      Check for available system updates
+  diskcheck         Check for disk partitions over 80%
 
-  psgrep <pat>    Search for process by name
-  psmem           Show top 10 processes by memory usage
-  pscpu           Show top 10 processes by CPU usage
-  top10           Show top 10 memory-consuming processes
+  psgrep <pat>      Search for process by name
+  topcpu            Show top 10 processes by CPU
+  topmem            Show top 10 processes by Memory
+  pscpu             Show top 10 processes by CPU (tree view)
+  psmem             Show top 10 processes by Memory (tree view)
 
-  ports           Show all listening ports (TCP/UDP)
-  listening       Show listening ports with process info
-  meminfo         Display detailed memory information
+  ports             Show all listening ports (TCP/UDP)
+  listening         Show listening ports with process info
+  meminfo           Display detailed memory information
 
-  h               Show command history
-  histop          Show most used commands
-  reload          Reload bashrc configuration
+  h                 Show command history
+  hgrep <pat>       Search command history
+  histop            Show most used commands
+  c, cls            Clear the screen
+  reload            Reload bashrc configuration
 
 ═══════════════════════════════════════════════════════════════════
 🐳 DOCKER & DOCKER COMPOSE
 ═══════════════════════════════════════════════════════════════════
 Docker Commands:
-  d               docker (shortcut)
-  dps             List running containers
-  dpsa            List all containers
-  di              List images
-  dv              List volumes
-  dn              List networks
-  dex <id>        Execute interactive shell in container
-  dlog <id>       Follow container logs
+  d                 docker (shortcut)
+  dps               List running containers
+  dpsa              List all containers
+  di                List images
+  dv                List volumes
+  dn                List networks
+  dex <id>          Execute interactive shell in container
+  dlog <id>         Follow container logs
 
-  dsh <id>        Enter container shell (bash/sh)
-  dip [id]        Show container IP addresses
-  dsize           Show disk usage by containers
-  dbinds [id]     Show bind mounts for containers
-  denv <id>       Show environment variables
-  dfollow <id>    Follow logs with tail (default 100 lines)
+  dsh <id>          Enter container shell (bash/sh)
+  dip [id]          Show container IP addresses
+  dsize             Show disk usage by containers
+  dbinds [id]       Show bind mounts for containers
+  denv <id>         Show environment variables
+  dfollow <id>      Follow logs with tail (default 100 lines)
 
-  dstats          Container stats snapshot
-  dstatsa         Container stats live
-  dtop            Container stats formatted table
+  dstats            Container stats snapshot
+  dstatsa           Container stats live
+  dtop              Container stats formatted table
 
-  dprune          Prune system (remove unused data)
-  dprunea         Prune all (including images)
-  dvprune         Prune unused volumes
-  diprune         Prune unused images
-  drmall          Remove all stopped containers
+  dprune            Prune system (remove unused data)
+  dprunea           Prune all (including images)
+  dvprune           Prune unused volumes
+  diprune           Prune unused images
+  drmall            Remove all stopped containers
 
 Docker Compose:
-  dc              docker compose (shortcut)
-  dcup            Start services in background
-  dcdown          Stop and remove services
-  dclogs          Follow compose logs
-  dcps            List compose services
-  dcex <srv>      Execute command in service
-  dcsh <srv>      Enter service shell (bash/sh)
+  dc                docker compose (shortcut)
+  dcup              Start services in background
+  dcdown            Stop and remove services
+  dclogs            Follow compose logs
+  dcps              List compose services
+  dcex <srv>        Execute command in service
+  dcsh <srv>        Enter service shell (bash/sh)
 
-  dcbuild         Build services
-  dcbn            Build with no cache
-  dcrestart       Restart services
-  dcrecreate      Recreate services
-  dcpull          Pull service images
-  dcstop          Stop services
-  dcstart         Start services
+  dcbuild           Build services
+  dcbn              Build with no cache
+  dcrestart         Restart services
+  dcrecreate        Recreate services
+  dcpull            Pull service images
+  dcstop            Stop services
+  dcstart           Start services
 
-  dcstatus        Show service status & resource usage
-  dcreload <srv>  Restart service and follow logs
-  dcupdate <srv>  Pull, restart service, follow logs
+  dcstatus          Show service status & resource usage
+  dcreload <srv>    Restart service and follow logs
+  dcupdate <srv>    Pull, restart service, follow logs
   dcgrep <srv> <pattern>  Filter service logs
-  dcconfig        Show resolved compose configuration
-  dcvalidate      Validate compose file syntax
+  dcconfig          Show resolved compose configuration
+  dcvalidate        Validate compose file syntax
 
 ═══════════════════════════════════════════════════════════════════
 🔀 GIT SHORTCUTS
 ═══════════════════════════════════════════════════════════════════
-  gs              git status
-  ga              git add
-  gc              git commit
-  gp              git push
-  gl              git log (graph view)
-  gd              git diff
-  gb              git branch
-  gco             git checkout
+  gs                git status
+  ga                git add
+  gc                git commit
+  gp                git push
+  gl                git log (graph view)
+  gd                git diff
+  gb                git branch
+  gco               git checkout
 
 ═══════════════════════════════════════════════════════════════════
 🌐 NETWORK
 ═══════════════════════════════════════════════════════════════════
-  myip            Show external IP address
-  localip         Show local IP address(es)
-  ping            Ping with 5 packets (default)
-  fastping        Fast ping (100 packets, 0.2s interval)
-  netstat         Show network connections (ss)
+  myip              Show external IP address
+  localip           Show local IP address(es)
+  netsum            Network connections summary
+  kssh              SSH wrapper for kitty terminal
+  ping              Ping with 5 packets (default)
+  fastping          Fast ping (100 packets, 0.2s interval)
+  netstat           Show network connections (ss)
 
 ═══════════════════════════════════════════════════════════════════
 ⚙️  SYSTEM ADMINISTRATION
 ═══════════════════════════════════════════════════════════════════
 Systemd:
-  sysstart <srv>      Start service
-  sysstop <srv>       Stop service
-  sysrestart <srv>    Restart service
-  sysstatus <srv>     Show service status
-  sysenable <srv>     Enable service
-  sysdisable <srv>    Disable service
-  sysreload           Reload systemd daemon
+  svc <srv>         Show service status (brief)
+  failed            List failed systemd services
+  sysstart <srv>    Start service
+  sysstop <srv>     Stop service
+  sysrestart <srv>  Restart service
+  sysstatus <srv>   Show service status
+  sysenable <srv>   Enable service
+  sysdisable <srv>  Disable service
+  sysreload         Reload systemd daemon
 
 APT (Debian/Ubuntu):
-  aptup               Update and upgrade packages
-  aptin <pkg>         Install package
-  aptrm <pkg>         Remove package
-  aptsearch <term>    Search for packages
-  aptshow <pkg>       Show package information
-  aptclean            Remove unused packages
-  aptlist             List installed packages
+  aptup             Update and upgrade packages
+  aptin <pkg>       Install package
+  aptrm <pkg>       Remove package
+  aptsearch <term>  Search for packages
+  aptshow <pkg>     Show package information
+  aptclean          Remove unused packages
+  aptlist           List installed packages
+
+Sudo:
+  please            Run last command with sudo
 
 ═══════════════════════════════════════════════════════════════════
 🕒 DATE & TIME
 ═══════════════════════════════════════════════════════════════════
-  now             Current date and time (YYYY-MM-DD HH:MM:SS)
-  nowdate         Current date (YYYY-MM-DD)
-  timestamp       Unix timestamp
+  now               Current date and time (YYYY-MM-DD HH:MM:SS)
+  nowdate           Current date (YYYY-MM-DD)
+  timestamp         Unix timestamp
 
 ═══════════════════════════════════════════════════════════════════
 ℹ️  HELP & INFORMATION
 ═══════════════════════════════════════════════════════════════════
-  bashhelp            Show this help (all categories)
+  bashhelp          Show this help (all categories)
+  bh                Alias for bashhelp
+  commands          List all custom functions and aliases
   bashhelp navigation Show navigation commands only
-  bashhelp files      Show file operation commands
-  bashhelp system     Show system monitoring commands
-  bashhelp docker     Show docker commands only
-  bashhelp git        Show git shortcuts
-  bashhelp network    Show network commands
+  bashhelp files    Show file operation commands
+  bashhelp system   Show system monitoring commands
+  bashhelp docker   Show docker commands only
+  bashhelp git      Show git shortcuts
+  bashhelp network  Show network commands
 
 ═══════════════════════════════════════════════════════════════════
 
 💡 TIP: Most commands support --help or -h for more information
-     The prompt shows: ✗ for failed commands, git branch when in repo
+     The prompt shows: ✗ for failed commands, (git branch) when in repo
 
 EOF
             ;;
@@ -1078,21 +1093,24 @@ EOF
 
 ═══ NAVIGATION & DIRECTORY COMMANDS ═══
 
-  ..              Go up one directory
-  ...             Go up two directories
-  ....            Go up three directories
-  .....           Go up four directories
-  -               Go to previous directory
-  ~               Go to home directory
+  ..                Go up one directory
+  ...               Go up two directories
+  ....              Go up three directories
+  .....             Go up four directories
+  -                 Go to previous directory
+  ~                 Go to home directory
 
-  mkcd <dir>      Create directory and cd into it
-  up <n>          Go up N directories
-  path            Display PATH variable
+  mkcd <dir>        Create directory and cd into it
+  up <n>            Go up N directories
+  path              Display PATH variable
+  mark <name>       Bookmark current directory
+  jump <name>       Jump to a bookmarked directory
 
 Examples:
   mkcd ~/projects/newapp    # Create and enter directory
   up 3                      # Go up 3 levels
-  cd -                      # Return to previous directory
+  mark proj1                # Bookmark current dir as 'proj1'
+  jump proj1                # Jump back to 'proj1'
 
 EOF
             ;;
@@ -1106,23 +1124,23 @@ Listing:
   ll, la, l, lt, ltr, lS, lsd, lsf
 
 Finding:
-  ff <name>       Find files by name
-  fd <name>       Find directories by name
-  ftext <text>    Search text in files
+  ff <name>         Find files by name
+  fd <name>         Find directories by name
+  ftext <text>      Search text in files
 
 Archives:
-  extract <file>  Extract any archive type
-  targz <dir>     Create tar.gz archive
-  backup <file>   Create timestamped backup
+  extract <file>    Extract any archive type
+  targz <dir>       Create tar.gz archive
+  backup <file>     Create timestamped backup
 
 Size Info:
-  sizeof <path>   Get size of file/directory
-  duh [path]      Disk usage sorted by size
-  count           Count files in directory
-  cpv             Copy with progress (rsync)
+  sizeof <path>     Get size of file/directory
+  duh [path]        Disk usage sorted by size
+  count             Count files in directory
+  cpv               Copy with progress (rsync)
 
 Examples:
-  ff README       # Find files named *README*
+  ff README         # Find files named *README*
   extract data.tar.gz
   backup ~/.bashrc
 
@@ -1135,27 +1153,31 @@ EOF
 ═══ SYSTEM MONITORING COMMANDS ═══
 
 Overview:
-  sysinfo         Comprehensive system info
-  checkupdates    Check for package updates
+  sysinfo           Comprehensive system info
+  checkupdates      Check for package updates
+  diskcheck         Check for disks > 80%
 
 Processes:
-  psgrep <pat>    Search processes
-  psmem           Top 10 by memory
-  pscpu           Top 10 by CPU
-  top10           Top memory consumers
+  psgrep <pat>      Search processes
+  topcpu            Top 10 by CPU
+  topmem            Top 10 by Memory
+  pscpu             Top 10 by CPU (tree view)
+  psmem             Top 10 by Memory (tree view)
 
 Network:
-  ports           Listening ports
-  listening       Ports with process info
+  ports             Listening ports
+  listening         Ports with process info
 
 Memory:
-  meminfo         Detailed memory info
-  free            Free memory (human-readable)
+  meminfo           Detailed memory info
+  free              Free memory (human-readable)
 
-History:
-  h               Show history
-  histop          Most used commands
-  reload          Reload bashrc
+Shell:
+  h                 Show history
+  hgrep <pat>       Search history
+  histop            Most used commands
+  c, cls            Clear screen
+  reload            Reload bashrc
 
 Examples:
   psgrep nginx
@@ -1173,26 +1195,26 @@ Basic:
   dps, dpsa, di, dv, dn, dex, dlog
 
 Management:
-  dsh <id>        Enter container shell
-  dip [id]        Show IP addresses
-  dsize           Show disk usage
-  dbinds [id]     Show bind mounts
-  denv <id>       Show environment variables
-  dfollow <id>    Follow logs
+  dsh <id>          Enter container shell
+  dip [id]          Show IP addresses
+  dsize             Show disk usage
+  dbinds [id]       Show bind mounts
+  denv <id>         Show environment variables
+  dfollow <id>      Follow logs
 
 Stats & Cleanup:
   dstats, dstatsa, dtop
   dprune, dprunea, dvprune, diprune
-  drmall          Remove stopped containers
+  drmall            Remove stopped containers
 
 Docker Compose:
   dcup, dcdown, dclogs, dcps, dcex, dcsh
   dcbuild, dcrestart, dcrecreate
-  dcstatus        Status & resource usage
-  dcreload <srv>  Restart & follow logs
-  dcupdate <srv>  Pull & update service
-  dcgrep <s> <p>  Filter logs
-  dcvalidate      Validate compose file
+  dcstatus          Status & resource usage
+  dcreload <srv>    Restart & follow logs
+  dcupdate <srv>    Pull & update service
+  dcgrep <s> <p>    Filter logs
+  dcvalidate        Validate compose file
 
 Examples:
   dsh mycontainer
@@ -1208,20 +1230,20 @@ EOF
 
 ═══ GIT SHORTCUTS ═══
 
-  gs              git status
-  ga              git add
-  gc              git commit
-  gp              git push
-  gl              git log (graph)
-  gd              git diff
-  gb              git branch
-  gco             git checkout
+  gs                git status
+  ga                git add
+  gc                git commit
+  gp                git push
+  gl                git log (graph)
+  gd                git diff
+  gb                git branch
+  gco               git checkout
 
 Examples:
-  gs                    # Check status
-  ga .                  # Add all changes
+  gs                # Check status
+  ga .              # Add all changes
   gc -m "Update docs"   # Commit
-  gp                    # Push to remote
+  gp                # Push to remote
 
 EOF
             ;;
@@ -1231,13 +1253,15 @@ EOF
 
 ═══ NETWORK COMMANDS ═══
 
-  myip            Show external IP
-  localip         Show local IP(s)
-  ports           Show listening ports
-  listening       Ports with process info
-  ping            Ping (5 packets)
-  fastping        Fast ping (100 packets)
-  netstat         Network connections
+  myip              Show external IP
+  localip           Show local IP(s)
+  netsum            Network connection summary
+  kssh              SSH wrapper for kitty
+  ports             Show listening ports
+  listening         Ports with process info
+  ping              Ping (5 packets)
+  fastping          Fast ping (100 packets)
+  netstat           Network connections (ss)
 
 Examples:
   myip              # Get public IP
