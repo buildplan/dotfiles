@@ -283,7 +283,36 @@ sizeof() {
 
 # Show most used commands from history.
 histop() {
-    history | awk -v ignorelist="$HISTIGNORE" 'BEGIN{OFS="\t";gsub(/:/,"|",ignorelist);iregex="^("ignorelist")($| )";sregex="(^|\\s)\\./"} {cmd=$4;for(i=5;i<=NF;i++){cmd=cmd " "$i}} (cmd==""||cmd~iregex||cmd~sregex){next} {CMD[cmd]++;count++} END{if(count>0)for(a in CMD)printf "%s\t%.2f%%\t%s\n",CMD[a],(CMD[a]/count*100),a}' | sort -nr | head -n20 | nl -w6 -s $'\t' | sed 's/^[ ]*//' | awk 'BEGIN{FS="\t"} { printf "    %-6s %-10s %-10s %s\n", $1, $2, $3, $4 }'
+    history | awk -v ig="$HISTIGNORE" 'BEGIN{OFS="\t";gsub(/:/,"|",ig);ir="^("ig")($| )";sr="(^|\\s)\\./"}
+    {cmd=$4;for(i=5;i<=NF;i++)cmd=cmd" "$i}
+    (cmd==""||cmd~ir||cmd~sr){next}
+    {C[cmd]++;t++}
+    END{if(t>0)for(a in C)printf"%d\t%.2f%%\t%s\n",C[a],(C[a]/t*100),a}' |
+    sort -nr | head -n20 |
+    awk 'BEGIN{
+        FS="\t";
+        maxc=length("COUNT");
+        maxp=length("PERCENT");
+    }
+    {
+        data[NR]=$0;
+        len1=length($1);
+        len2=length($2);
+        if(len1>maxc)maxc=len1;
+        if(len2>maxp)maxp=len2;
+    }
+    END{
+        fmt="  %-4s %-*s  %-*s  %s\n";
+        printf fmt,"RANK",maxc,"COUNT",maxp,"PERCENT","COMMAND";
+        sep_c=sep_p="";
+        for(i=1;i<=maxc;i++)sep_c=sep_c"-";
+        for(i=1;i<=maxp;i++)sep_p=sep_p"-";
+        printf fmt,"----",maxc,sep_c,maxp,sep_p,"-------";
+        for(i=1;i<=NR;i++){
+            split(data[i],f,"\t");
+            printf fmt,i".",maxc,f[1],maxp,f[2],f[3]
+        }
+    }'
 }
 
 # Quick server info display
