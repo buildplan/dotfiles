@@ -283,7 +283,7 @@ sizeof() {
 
 # Show most used commands from history.
 histop() {
-    history | awk '{$1=""; $2=""; $3=""; $0=substr($0, 4)} {CMD[$0]++;count++;} END { for (a in CMD)print CMD[a] " " CMD[a]/count*100 "% " a;}' | grep -v "./" | column -c3 -s " " -t | sort -nr | nl | head -n20
+    history | awk -v ignorelist="$HISTIGNORE" 'BEGIN{OFS="\t";gsub(/:/,"|",ignorelist);iregex="^("ignorelist")($| )";sregex="(^|\\s)\\./"} {cmd=$4;for(i=5;i<=NF;i++){cmd=cmd " "$i}} (cmd==""||cmd~iregex||cmd~sregex){next} {CMD[cmd]++;count++} END{if(count>0)for(a in CMD)printf "%s\t%.2f%%\t%s\n",CMD[a],(CMD[a]/count*100),a}' | sort -nr | head -n20 | nl -w6 -s $'\t' | sed 's/^[ ]*//' | column -t -s $'\t'
 }
 
 # Quick server info display
