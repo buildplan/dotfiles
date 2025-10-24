@@ -597,6 +597,7 @@ alias listening='ss -tlnp'
 alias meminfo='free -h -l -t'
 alias psmem='ps auxf | sort -nr -k 4 | head -10'
 alias pscpu='ps auxf | sort -nr -k 3 | head -10'
+alias top10='ps aux --sort=-%mem | head -n 11'
 
 # Quick network info.
 alias myip='curl -s ifconfig.me || curl -s icanhazip.com' # Alternatives: api.ipify.org, icanhazip.co
