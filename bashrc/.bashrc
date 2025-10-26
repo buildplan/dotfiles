@@ -2,8 +2,8 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 0.9
-#   Last Updated: 2025-10-24
+#   Version: 0.10
+#   Last Updated: 2025-10-26
 # ===================================================================
 
 # If not running interactively, don't do anything.
@@ -913,7 +913,7 @@ bashhelp() {
 
     case "$category" in
         all|"")
-            cat << 'EOF'
+            cat << 'HELPTEXT'
 
 ╔════════════════════════════════════════════════════════╗
 ║               .bashrc - Quick Reference                ║
@@ -1114,11 +1114,11 @@ Sudo:
 💡 TIP: Most commands support --help or -h for more information
      The prompt shows: ✗ for failed commands, (git branch) when in repo
 
-EOF
+HELPTEXT
             ;;
 
         navigation)
-            cat << 'EOF'
+            cat << 'HELPTEXT'
 
 ═══ NAVIGATION & DIRECTORY COMMANDS ═══
 
@@ -1141,11 +1141,11 @@ Examples:
   mark proj1                # Bookmark current dir as 'proj1'
   jump proj1                # Jump back to 'proj1'
 
-EOF
+HELPTEXT
             ;;
 
         files)
-            cat << 'EOF'
+            cat << 'HELPTEXT'
 
 ═══ FILE OPERATION COMMANDS ═══
 
@@ -1173,11 +1173,11 @@ Examples:
   extract data.tar.gz
   backup ~/.bashrc
 
-EOF
+HELPTEXT
             ;;
 
         system)
-            cat << 'EOF'
+            cat << 'HELPTEXT'
 
 ═══ SYSTEM MONITORING COMMANDS ═══
 
@@ -1212,11 +1212,11 @@ Examples:
   psgrep nginx
   psmem | grep docker
 
-EOF
+HELPTEXT
             ;;
 
         docker)
-            cat << 'EOF'
+            cat << 'HELPTEXT'
 
 ═══ DOCKER COMMANDS ═══
 
@@ -1251,11 +1251,11 @@ Examples:
   dcupdate nginx
   dcgrep app "error"
 
-EOF
+HELPTEXT
             ;;
 
         git)
-            cat << 'EOF'
+            cat << 'HELPTEXT'
 
 ═══ GIT SHORTCUTS ═══
 
@@ -1274,11 +1274,11 @@ Examples:
   gc -m "Update docs"   # Commit
   gp                # Push to remote
 
-EOF
+HELPTEXT
             ;;
 
         network)
-            cat << 'EOF'
+            cat << 'HELPTEXT'
 
 ═══ NETWORK COMMANDS ═══
 
@@ -1297,7 +1297,7 @@ Examples:
   listening | grep 80
   ping google.com
 
-EOF
+HELPTEXT
             ;;
 
         *)
