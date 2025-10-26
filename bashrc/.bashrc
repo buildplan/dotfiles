@@ -2,7 +2,6 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Version: 0.10
 #   Last Updated: 2025-10-26
 # ===================================================================
 
