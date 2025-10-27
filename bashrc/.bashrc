@@ -2,7 +2,7 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Last Updated: 2025-10-26
+#   Last Updated: 2025-10-27
 # ===================================================================
 
 # If not running interactively, don't do anything.
@@ -160,16 +160,15 @@ __bash_prompt_command() {
 PROMPT_COMMAND=__bash_prompt_command
 
 # --- Editor Configuration ---
-# Set default editor with fallback chain.
 if command -v vim &>/dev/null; then
     export EDITOR=vim
     export VISUAL=vim
-elif command -v vi &>/dev/null; then
-    export EDITOR=vi
-    export VISUAL=vi
-else
+elif command -v nano &>/dev/null; then
     export EDITOR=nano
     export VISUAL=nano
+else
+    export EDITOR=vi
+    export VISUAL=vi
 fi
 
 # --- Additional Environment Variables ---
