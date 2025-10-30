@@ -262,62 +262,102 @@ sysinfo() {
 
     printf "\n${BOLD_WHITE}=== System Information ===${RESET}\n"
 
+    # CPU info
     local cpu_info
-    cpu_info=$(lscpu | awk -F: '/Model name/ {print $2; exit}' | xargs || grep -m1 'model name' /proc/cpuinfo | cut -d ':' -f2 | xargs)
+    cpu_info=$(lscpu 2>/dev/null | awk -F: '/Model name/ {gsub(/^[ \t]+/, "", $2); print $2; exit}')
+    [ -z "$cpu_info" ] && cpu_info=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d ':' -f2 | xargs)
     [ -z "$cpu_info" ] && cpu_info="Unknown"
 
+    # IP address detection with timeout and Tailscale handling
     local ip_addr public_ipv4
-    public_ipv4=$(curl -4 -s -m 2 --connect-timeout 1 https://checkip.amazonaws.com 2>/dev/null)
-    
-    for iface in eth0 ens3 enp0s3 wlan0 wlp2s0 eno1; do
-        ip_addr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
-        [ -n "$ip_addr" ] && break
-    done
-    [ -z "$ip_addr" ] && ip_addr=$(ip -4 addr show scope global 2>/dev/null | awk '/inet/ {print $2}' | cut -d/ -f1 | head -n1)
 
+    # Get public IP with short timeout to avoid hanging
+    public_ipv4=$(timeout 2 curl -4 -s --max-time 1 --connect-timeout 1 https://ifconfig.me 2>/dev/null || \
+                  timeout 2 curl -4 -s --max-time 1 --connect-timeout 1 https://icanhazip.com 2>/dev/null)
+
+    # Get local IP, excluding Tailscale and Docker interfaces
+    for iface in eth0 ens3 enp0s3 enp1s0 eno1 wlan0 wlp2s0 wlp3s0 wlo1; do
+        if ip link show "$iface" &>/dev/null; then
+            ip_addr=$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
+            [ -n "$ip_addr" ] && break
+        fi
+    done
+
+    # Fallback: get first non-loopback, non-tailscale, non-docker IP
+    if [ -z "$ip_addr" ]; then
+        ip_addr=$(ip -4 addr show scope global 2>/dev/null | \
+                  grep -v 'tailscale\|docker\|veth' | \
+                  awk '/inet/ {print $2}' | cut -d/ -f1 | \
+                  grep -v '^100\.' | head -n1)
+    fi
+
+    # Display hostname with IPs
     if [ -n "$public_ipv4" ]; then
-        printf "${CYAN}%-15s${RESET} %s  ${YELLOW}[%s]${RESET}" "Hostname:" "$(hostname)" "$public_ipv4"
+        printf "${CYAN}%-15s${RESET} %s  ${YELLOW}[%s]${RESET}" "Hostname:" "$(hostname -s)" "$public_ipv4"
         if [ -n "$ip_addr" ] && [ "$ip_addr" != "$public_ipv4" ]; then
             printf " ${DIM}(local: %s)${RESET}\n" "$ip_addr"
         else
             printf "\n"
         fi
     elif [ -n "$ip_addr" ]; then
-        printf "${CYAN}%-15s${RESET} %s  ${YELLOW}[%s]${RESET}\n" "Hostname:" "$(hostname)" "$ip_addr"
+        printf "${CYAN}%-15s${RESET} %s  ${YELLOW}[%s]${RESET}\n" "Hostname:" "$(hostname -s)" "$ip_addr"
     else
-        printf "${CYAN}%-15s${RESET} %s\n" "Hostname:" "$(hostname)"
+        printf "${CYAN}%-15s${RESET} %s\n" "Hostname:" "$(hostname -s)"
     fi
 
+    # OS info
     printf "${CYAN}%-15s${RESET} %s\n" "OS:" "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 || echo 'Unknown')"
+
+    # Kernel
     printf "${CYAN}%-15s${RESET} %s\n" "Kernel:" "$(uname -r)"
+
+    # Uptime
     printf "${CYAN}%-15s${RESET} %s\n" "Uptime:" "$(uptime -p 2>/dev/null || uptime | sed 's/.*up //' | sed 's/,.*//')"
+
+    # Time
     printf "${CYAN}%-15s${RESET} %s\n" "Time:" "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+
+    # CPU
     printf "${CYAN}%-15s${RESET} %s\n" "CPU:" "$cpu_info"
+
+    # Memory - Simple approach that works with Fedora's free output
     printf "${CYAN}%-15s${RESET} " "Memory:"
-    free -m | awk '/Mem/ {
-        used = $3; total = $2; percent = int((used/total)*100);
-        if (used >= 1024) { used_fmt = sprintf("%.1fGi", used/1024); } else { used_fmt = sprintf("%dMi", used); }
-        if (total >= 1024) { total_fmt = sprintf("%.1fGi", total/1024); } else { total_fmt = sprintf("%dMi", total); }
-        printf "%s / %s (%d%% used)\n", used_fmt, total_fmt, percent;
-    }'
-    printf "${CYAN}%-15s${RESET} %s\n" "Disk (/):" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
+    local mem_info
+    mem_info=$(free -h | awk 'NR==2 {print $3 " / " $2}')
+    local mem_percent
+    mem_percent=$(free | awk 'NR==2 {printf "%.0f", $3/$2 * 100}')
+    printf "%s (%s%% used)\n" "$mem_info" "$mem_percent"
+
+    # Disk usage
+    printf "${CYAN}%-15s${RESET} %s\n" "Disk (/):" "$(df -h / 2>/dev/null | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
+
+    # Tailscale status - Simplified to use tailscale ip command
+    if command -v tailscale &>/dev/null; then
+        local ts_ip
+        ts_ip=$(timeout 1 tailscale ip -4 2>/dev/null | head -n1)
+        if [ -n "$ts_ip" ]; then
+            # Check if tailscale status shows we're connected
+            if timeout 1 tailscale status &>/dev/null; then
+                printf "${CYAN}%-15s${RESET} ${GREEN}Connected${RESET} ${DIM}(%s)${RESET}\n" "Tailscale:" "$ts_ip"
+            fi
+        fi
+    fi
 
     # Fedora-specific: Check for dnf updates
     if command -v dnf &>/dev/null; then
         local updates
-        updates=$(dnf check-update -q 2>/dev/null | grep -v "^$" | grep -v "Last metadata" | wc -l)
-        if [ "$updates" -gt 0 ]; then
+        updates=$(timeout 3 dnf check-update -q 2>/dev/null | grep -v "^$" | grep -v "Last metadata" | wc -l)
+        if [ -n "$updates" ] && [ "$updates" -gt 0 ]; then
             printf "${CYAN}%-15s${RESET} ${YELLOW}%s packages${RESET}\n" "DNF Updates:" "$updates"
         fi
     fi
 
     # Docker info
-    if command -v docker &>/dev/null; then
-        mapfile -t docker_states < <(docker ps -a --format '{{.State}}' 2>/dev/null)
-        local total=${#docker_states[@]}
-        if (( total > 0 )); then
-            local running
-            running=$(printf "%s\n" "${docker_states[@]}" | grep -c '^running$')
+    if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+        local running total
+        running=$(docker ps -q 2>/dev/null | wc -l)
+        total=$(docker ps -aq 2>/dev/null | wc -l)
+        if [ "$total" -gt 0 ]; then
             printf "${CYAN}%-15s${RESET} ${GREEN}%s running${RESET} / %s total containers\n" "Docker:" "$running" "$total"
         fi
     fi
@@ -531,7 +571,7 @@ if command -v git &>/dev/null; then
     alias gcl='git clone'
     alias gm='git merge'
     alias gr='git remote -v'
-    
+
     # Enable git completion for aliases
     __git_complete g __git_main 2>/dev/null
     __git_complete gco _git_checkout 2>/dev/null
@@ -565,14 +605,14 @@ if command -v docker &>/dev/null; then
     alias diprune='docker image prune -af'
     alias dstats='docker stats --no-stream'
     alias dstatsa='docker stats'
-    
+
     dtop() {
         docker stats --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}'
     }
-    
+
     alias dstopa='echo "To stop all containers, run: docker stop \$(docker ps -q)"'
     alias dstarta='docker start $(docker ps -aq)'
-    
+
     # Docker Compose
     if docker compose version &>/dev/null; then
         alias dc='docker compose'
@@ -591,7 +631,7 @@ if command -v docker &>/dev/null; then
         alias dcconfig='docker compose config'
         alias dcvalidate='docker compose config --quiet && echo "✓ docker-compose.yml is valid" || echo "✗ docker-compose.yml has errors"'
     fi
-    
+
     # Docker functions
     dsh() {
         if [ -z "$1" ]; then
@@ -600,7 +640,7 @@ if command -v docker &>/dev/null; then
         fi
         docker exec -it "$1" bash 2>/dev/null || docker exec -it "$1" sh
     }
-    
+
     dcsh() {
         if [ -z "$1" ]; then
             echo "Usage: dcsh <service-name>" >&2
@@ -608,7 +648,7 @@ if command -v docker &>/dev/null; then
         fi
         docker compose exec "$1" bash 2>/dev/null || docker compose exec "$1" sh
     }
-    
+
     dfollow() {
         if [ -z "$1" ]; then
             echo "Usage: dfollow <container-name-or-id> [lines]" >&2
@@ -617,7 +657,7 @@ if command -v docker &>/dev/null; then
         local lines="${2:-100}"
         docker logs -f --tail "$lines" "$1"
     }
-    
+
     dip() {
         if [ -z "$1" ]; then
             docker ps -q | xargs -I {} docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' {} 2>/dev/null
@@ -625,7 +665,7 @@ if command -v docker &>/dev/null; then
             docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$1" 2>/dev/null
         fi
     }
-    
+
     denv() {
         if [ -z "$1" ]; then
             echo "Usage: denv <container-name-or-id>" >&2
@@ -633,7 +673,7 @@ if command -v docker &>/dev/null; then
         fi
         docker inspect "$1" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sort
     }
-    
+
     dclean() {
         printf 'Stopping all containers...\n'
         docker stop "$(docker ps -q)" 2>/dev/null
@@ -641,7 +681,7 @@ if command -v docker &>/dev/null; then
         docker system prune -af --volumes
         printf 'Docker cleanup complete.\n'
     }
-    
+
     dcstatus() {
         printf "\n=== Docker Compose Services ===\n\n"
         docker compose ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}'
@@ -649,7 +689,7 @@ if command -v docker &>/dev/null; then
         docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}'
         printf "\n"
     }
-    
+
     dcreload() {
         if [ -z "$1" ]; then
             echo "Usage: dcreload <service-name>" >&2
@@ -657,7 +697,7 @@ if command -v docker &>/dev/null; then
         fi
         docker compose restart "$1" && docker compose logs -f "$1"
     }
-    
+
     dcupdate() {
         if [ -z "$1" ]; then
             echo "Usage: dcupdate <service-name>" >&2
