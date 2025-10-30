@@ -1,4 +1,5 @@
 # .bashrc
+# mv .bashrc .bashrc.bak && curl -Lo .bashrc https://raw.githubusercontent.com/buildplan/dotfiles/refs/heads/main/bashrc/fedora-ws.bashrc
 
 # Source global definitions
 if [ -f /etc/bashrc ]; then
