@@ -294,22 +294,33 @@ sysinfo() {
     printf "${CYAN}%-15s${RESET} %s\n" "Time:" "$(date '+%Y-%m-%d %H:%M:%S %Z')"
     printf "${CYAN}%-15s${RESET} %s\n" "CPU:" "$(sysctl -n machdep.cpu.brand_string)"
 
-    # Memory display - Simple and reliable for macOS
+    # Memory display using vm_stat - WORKING VERSION
     printf "${CYAN}%-15s${RESET} " "Memory:"
+
+    # Get total memory in GB
     local total_mem
     total_mem=$(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%.0f", $1 / 1024 / 1024 / 1024}')
 
-    if [ -n "$total_mem" ] && [ "$total_mem" != "0" ]; then
-        # Use top command to get memory usage (more reliable)
-        local mem_used
-        mem_used=$(top -l 1 -n 0 2>/dev/null | grep "PhysMem:" | awk '{print $2}' | sed 's/M//g' | awk '{printf "%.0f", $1 / 1024}')
+    # Get used memory from vm_stat
+    # Used = (Pages active + Pages inactive + Pages wired down) * 4096 bytes
+    local used_mem
+    used_mem=$(vm_stat 2>/dev/null | awk '
+        /^Pages active:/ { active = $3 }
+        /^Pages inactive:/ { inactive = $3 }
+        /^Pages wired down:/ { wired = $4 }
+        END {
+            if (active && inactive && wired) {
+                used_bytes = (active + inactive + wired) * 4096
+                used_gb = used_bytes / (1024 * 1024 * 1024)
+                printf "%.0f", used_gb
+            }
+        }
+    ')
 
-        if [ -n "$mem_used" ] && [ "$mem_used" != "0" ]; then
-            printf "%dGB / %dGB\n" "$mem_used" "$total_mem"
-        else
-            # Fallback if top doesn't work
-            printf "%dGB (total)\n" "$total_mem"
-        fi
+    if [ -n "$total_mem" ] && [ -n "$used_mem" ] && [ "$used_mem" != "0" ]; then
+        printf "%sGB / %sGB\n" "$used_mem" "$total_mem"
+    elif [ -n "$total_mem" ]; then
+        printf "%sGB (total)\n" "$total_mem"
     else
         printf "N/A\n"
     fi
