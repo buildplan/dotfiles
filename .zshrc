@@ -293,23 +293,30 @@ sysinfo() {
     printf "${CYAN}%-15s${RESET} %s\n" "Uptime:" "$(uptime | sed 's/^.*up //' | sed 's/,.*//')"
     printf "${CYAN}%-15s${RESET} %s\n" "Time:" "$(date '+%Y-%m-%d %H:%M:%S %Z')"
     printf "${CYAN}%-15s${RESET} %s\n" "CPU:" "$(sysctl -n machdep.cpu.brand_string)"
-    
-    # Memory display
-    printf "${CYAN}%-15s${RESET} "
-    local mem_available mem_total
-    mem_total=$(vm_stat | grep "Pages free:" | awk '{total += $3} END {print total * 4}')
-    mem_available=$(vm_stat | grep "Pages speculative:" | awk '{spec += $3} END {print spec * 4}')
-    if [ -n "$mem_total" ] && [ "$mem_total" -gt 0 ]; then
-        local mem_gb
-        mem_gb=$((mem_total / 1024 / 1024))
-        printf "%dGB\n" "$mem_gb"
+
+    # Memory display - Simple and reliable for macOS
+    printf "${CYAN}%-15s${RESET} " "Memory:"
+    local total_mem
+    total_mem=$(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%.0f", $1 / 1024 / 1024 / 1024}')
+
+    if [ -n "$total_mem" ] && [ "$total_mem" != "0" ]; then
+        # Use top command to get memory usage (more reliable)
+        local mem_used
+        mem_used=$(top -l 1 -n 0 2>/dev/null | grep "PhysMem:" | awk '{print $2}' | sed 's/M//g' | awk '{printf "%.0f", $1 / 1024}')
+
+        if [ -n "$mem_used" ] && [ "$mem_used" != "0" ]; then
+            printf "%dGB / %dGB\n" "$mem_used" "$total_mem"
+        else
+            # Fallback if top doesn't work
+            printf "%dGB (total)\n" "$total_mem"
+        fi
     else
         printf "N/A\n"
     fi
-    
+
     # Disk usage
     printf "${CYAN}%-15s${RESET} %s\n" "Disk (/):" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
-    
+
     # Git repos count
     if [ -d ~/github ] || [ -d ~/projects ]; then
         local gh_count
@@ -318,7 +325,7 @@ sysinfo() {
             printf "${CYAN}%-15s${RESET} ${GREEN}%s${RESET}\n" "GitHub Repos:" "$gh_count"
         fi
     fi
-    
+
     if [ -d ~/forgejo ]; then
         local fg_count
         fg_count=$(find ~/forgejo -maxdepth 2 -name ".git" -type d 2>/dev/null | wc -l | xargs)
@@ -326,7 +333,7 @@ sysinfo() {
             printf "${CYAN}%-15s${RESET} ${GREEN}%s${RESET}\n" "Forgejo Repos:" "$fg_count"
         fi
     fi
-    
+
     printf "\n"
 }
 
