@@ -329,7 +329,7 @@ sysinfo() {
     printf "${CYAN}%-15s${RESET} %s\n" "Disk (/):" "$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 " used)"}')"
 
     # Git repos count
-    if [ -d ~/github ] || [ -d ~/projects ]; then
+    if [ -d ~/Documents/github ] || [ -d ~/github ]; then
         local gh_count
         gh_count=$(find ~/github ~/projects -maxdepth 2 -name ".git" -type d 2>/dev/null | wc -l | xargs)
         if [ "$gh_count" -gt 0 ]; then
@@ -337,7 +337,7 @@ sysinfo() {
         fi
     fi
 
-    if [ -d ~/forgejo ]; then
+    if [ -d ~/Documents/forgejo ] || [ -d ~/forgejo ]; then
         local fg_count
         fg_count=$(find ~/forgejo -maxdepth 2 -name ".git" -type d 2>/dev/null | wc -l | xargs)
         if [ "$fg_count" -gt 0 ]; then
