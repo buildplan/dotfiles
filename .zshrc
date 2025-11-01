@@ -331,7 +331,7 @@ sysinfo() {
     # Git repos count
     if [ -d ~/Documents/github ] || [ -d ~/github ]; then
         local gh_count
-        gh_count=$(find ~/github ~/projects -maxdepth 2 -name ".git" -type d 2>/dev/null | wc -l | xargs)
+        gh_count=$(find ~/Documents/github ~/github -maxdepth 2 -name ".git" -type d 2>/dev/null | wc -l | xargs)
         if [ "$gh_count" -gt 0 ]; then
             printf "${CYAN}%-15s${RESET} ${GREEN}%s${RESET}\n" "GitHub Repos:" "$gh_count"
         fi
@@ -339,7 +339,7 @@ sysinfo() {
 
     if [ -d ~/Documents/forgejo ] || [ -d ~/forgejo ]; then
         local fg_count
-        fg_count=$(find ~/forgejo -maxdepth 2 -name ".git" -type d 2>/dev/null | wc -l | xargs)
+        fg_count=$(find ~/Documents/forgejo ~/forgejo -maxdepth 2 -name ".git" -type d 2>/dev/null | wc -l | xargs)
         if [ "$fg_count" -gt 0 ]; then
             printf "${CYAN}%-15s${RESET} ${GREEN}%s${RESET}\n" "Forgejo Repos:" "$fg_count"
         fi
