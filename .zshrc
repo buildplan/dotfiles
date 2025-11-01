@@ -544,3 +544,7 @@ fi
 if [ -f ~/.zshrc."$(hostname -s)" ]; then
     source ~/.zshrc."$(hostname -s)"
 fi
+
+if command -v fastfetch &>/dev/null; then
+    fastfetch
+fi
