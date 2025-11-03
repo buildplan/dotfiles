@@ -186,7 +186,7 @@ mkcd() {
 # Create a backup of a file with timestamp.
 backup() {
     if [ -f "$1" ]; then
-        local backup_file="$1.backup-$(date +%Y%m%d-%H%M%S)"
+        local backup_file; backup_file="$1.backup-$(date +%Y%m%d-%H%M%S)"
         cp "$1" "$backup_file"
         echo "Backup created: $backup_file"
     else
