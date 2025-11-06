@@ -1006,7 +1006,7 @@ Docker Commands:
 
   dstats            Container stats snapshot
   dstatsa           Container stats live
-  dtop              Container stats formatted table
+  dst               Container stats formatted table
 
   dprune            Prune system (remove unused data)
   dprunea           Prune all (including images)
@@ -1230,7 +1230,7 @@ Management:
   dfollow <id>      Follow logs
 
 Stats & Cleanup:
-  dstats, dstatsa, dtop
+  dstats, dstatsa, dst
   dprune, dprunea, dvprune, diprune
   drmall            Remove stopped containers
 
