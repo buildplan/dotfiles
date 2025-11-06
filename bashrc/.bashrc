@@ -2,7 +2,7 @@
 # ===================================================================
 #   Universal Portable .bashrc for Modern Terminals
 #   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Last Updated: 2025-10-27
+#   Last Updated: 2025-11-06
 # ===================================================================
 
 # If not running interactively, don't do anything.
@@ -686,7 +686,7 @@ if command -v docker &>/dev/null; then
     # Docker stats
     alias dstats='docker stats --no-stream'
     alias dstatsa='docker stats'
-    dtop() {
+    dst() {
         docker stats --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}'
     }
 
