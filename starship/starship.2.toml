@@ -1,0 +1,195 @@
+# --- Main Prompt Format ---
+# Scheme: OS(Blue) > Dir(Purple) > Git(Pink) > Langs(Yellow) > Docker(Teal) > System(Grey) > Time(Dark)
+format = """
+[](fg:#7aa2f7)\
+$os\
+$username\
+[](fg:#7aa2f7 bg:#bb9af7)\
+$directory\
+[](fg:#bb9af7 bg:#f7768e)\
+$git_branch\
+$git_status\
+[](fg:#f7768e bg:#e0af68)\
+$c\
+$elixir\
+$elm\
+$golang\
+$gradle\
+$haskell\
+$java\
+$julia\
+$nodejs\
+$nim\
+$rust\
+$scala\
+$php\
+[](fg:#e0af68 bg:#7dcfff)\
+$docker_context\
+[](fg:#7dcfff bg:#414868)\
+$jobs\
+$cmd_duration\
+$battery\
+[](fg:#414868 bg:#24283b)\
+$time\
+[](fg:#24283b)\
+\n$character
+"""
+
+# --- User & OS (Blue #7aa2f7) ---
+[username]
+show_always = false
+style_user = "bg:#7aa2f7 fg:#15161e bold"
+style_root = "bg:#7aa2f7 fg:#15161e bold"
+format = '[$user ]($style)'
+disabled = true
+
+[os]
+style = "bg:#7aa2f7 fg:#15161e bold"
+format = '[$symbol]($style)'
+disabled = false
+[os.symbols]
+Macos = " "
+Ubuntu = " "
+Windows = " "
+Linux = " "
+
+# --- Directory (Purple #bb9af7) ---
+[directory]
+style = "bg:#bb9af7 fg:#15161e bold"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = " "
+"Pictures" = " "
+
+# --- Git (Pink #f7768e) ---
+[git_branch]
+symbol = ""
+style = "bg:#f7768e fg:#15161e bold"
+format = '[ $symbol $branch ]($style)'
+
+[git_status]
+style = "bg:#f7768e fg:#15161e bold"
+format = '[$all_status$ahead_behind ]($style)'
+
+# --- Languages (Yellow #e0af68) ---
+# All languages share this background to prevent rainbow chaos
+[c]
+symbol = " "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[elixir]
+symbol = " "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[elm]
+symbol = " "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[golang]
+symbol = " "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[gradle]
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[haskell]
+symbol = " "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[java]
+symbol = " "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[julia]
+symbol = " "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[nodejs]
+symbol = ""
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[nim]
+symbol = "󰆥 "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[rust]
+symbol = ""
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[scala]
+symbol = " "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+[php]
+symbol = ""
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version) ]($style)'
+
+# --- Docker (Teal #7dcfff) ---
+[docker_context]
+symbol = " "
+style = "bg:#7dcfff fg:#15161e bold"
+format = '[ $symbol $context ]($style)'
+
+
+# --- System Info (Grey #414868) ---
+# Jobs, Cmd, and Battery share this background so they merge seamlessly
+[jobs]
+symbol = ""
+style = "bg:#414868 fg:#c0caf5"
+number_threshold = 1
+format = '[ $symbol$number ]($style)'
+
+[cmd_duration]
+min_time = 1000
+style = "bg:#414868 fg:#c0caf5"
+format = "[ 󰔟 $duration ]($style)"
+
+# --- THE BATTERY TRICK ---
+[battery]
+full_symbol = " "
+charging_symbol = "󰂄 "
+discharging_symbol = " "
+# 1. Default format is empty (Invisible if battery is healthy)
+format = "" 
+
+# 2. If Battery < 20% (Critical), show it in RED
+[[battery.display]]
+threshold = 20
+style = "bg:#414868 fg:#f7768e bold"
+format = "[ $symbol$percentage ]($style)"
+
+# 3. If Battery < 50% (Warning), show it in ORANGE
+[[battery.display]]
+threshold = 50
+style = "bg:#414868 fg:#ff9e64 bold"
+format = "[ $symbol$percentage ]($style)"
+
+# --- Time (Dark Blue #24283b) ---
+[time]
+disabled = false
+time_format = "%R"
+style = "bg:#24283b fg:#7aa2f7 bold"
+format = '[  $time ]($style)'
+
+# --- Character ---
+[character]
+success_symbol = "[➜](bold green)"
+error_symbol = "[➜](bold red)"
+vimcmd_symbol = "[❮](bold yellow)"
