@@ -256,13 +256,13 @@ format = "[ $symbol$percentage ]($style)"
 [[battery.display]]
 threshold = 20
 style = "bg:#414868 fg:#f7768e bold"
-# Warning (< 45%) - Orange
+# Warning (20–45%) - Orange
 [[battery.display]]
 threshold = 45
 style = "bg:#414868 fg:#ff9e64 bold"
 # Healthy (The rest) - Blue/White
 [[battery.display]]
-threshold = 100
+# threshold = 100
 style = "bg:#414868 fg:#c0caf5"
 
 # --- Time (Dark Blue #24283b) ---
