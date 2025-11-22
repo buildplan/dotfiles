@@ -166,20 +166,19 @@ format = "[ 󰔟 $duration ]($style)"
 full_symbol = " "
 charging_symbol = "󰂄 "
 discharging_symbol = " "
-# 1. Default format is empty (Invisible if battery is healthy)
-format = "" 
-
-# 2. If Battery < 20% (Critical), show it in RED
+format = "[ $symbol$percentage ]($style)"
+# Critical (< 20%) - Red
 [[battery.display]]
 threshold = 20
 style = "bg:#414868 fg:#f7768e bold"
-format = "[ $symbol$percentage ]($style)"
-
-# 3. If Battery < 50% (Warning), show it in ORANGE
+# Warning (< 50%) - Orange
 [[battery.display]]
-threshold = 50
+threshold = 40
 style = "bg:#414868 fg:#ff9e64 bold"
-format = "[ $symbol$percentage ]($style)"
+# Healthy (The rest) - Blue/White
+[[battery.display]]
+threshold = 100
+style = "bg:#414868 fg:#c0caf5"
 
 # --- Time (Dark Blue #24283b) ---
 [time]
