@@ -23,11 +23,20 @@ $nim\
 $rust\
 $scala\
 $php\
+$python\
 [](fg:#e0af68 bg:#7dcfff)\
 $docker_context\
-[](fg:#7dcfff bg:#414868)\
+[](fg:#7dcfff bg:#89ddff)\
+$kubernetes\
+$terraform\
+[](fg:#7dcfff bg:#89ddff)\
+$aws\
+$gcloud\
+$azure\
+[](fg:#89ddff bg:#414868)\
 $jobs\
 $cmd_duration\
+$status\
 $battery\
 [](fg:#414868 bg:#24283b)\
 $time\
@@ -71,12 +80,22 @@ symbol = ""
 style = "bg:#f7768e fg:#15161e bold"
 format = '[ $symbol $branch ]($style)'
 
+[git_commit]
+style = "bg:#f7768e fg:#15161e bold"
+format = '[ \($hash$tag\) ]($style)'
+only_detached = true
+tag_disabled = false
+tag_symbol = " 🏷 "
+
 [git_status]
 style = "bg:#f7768e fg:#15161e bold"
 format = '[$all_status$ahead_behind ]($style)'
+ahead = "⇡${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+behind = "⇣${count}"
+ignore_submodules = true  # Speeds up large repos
 
 # --- Languages (Yellow #e0af68) ---
-# All languages share this background to prevent rainbow chaos
 [c]
 symbol = " "
 style = "bg:#e0af68 fg:#15161e bold"
@@ -96,6 +115,8 @@ format = '[ $symbol($version) ]($style)'
 symbol = " "
 style = "bg:#e0af68 fg:#15161e bold"
 format = '[ $symbol($version) ]($style)'
+detect_extensions = ['go']
+detect_files = ['go.mod', 'go.sum']
 
 [gradle]
 style = "bg:#e0af68 fg:#15161e bold"
@@ -120,6 +141,8 @@ format = '[ $symbol($version) ]($style)'
 symbol = ""
 style = "bg:#e0af68 fg:#15161e bold"
 format = '[ $symbol($version) ]($style)'
+detect_extensions = ['js', 'mjs', 'cjs', 'ts']
+detect_files = ['package.json', '.node-version', '.nvmrc']
 
 [nim]
 symbol = "󰆥 "
@@ -130,6 +153,8 @@ format = '[ $symbol($version) ]($style)'
 symbol = ""
 style = "bg:#e0af68 fg:#15161e bold"
 format = '[ $symbol($version) ]($style)'
+detect_extensions = ['rs']
+detect_files = ['Cargo.toml', 'Cargo.lock']
 
 [scala]
 symbol = " "
@@ -141,12 +166,61 @@ symbol = ""
 style = "bg:#e0af68 fg:#15161e bold"
 format = '[ $symbol($version) ]($style)'
 
-# --- Docker (Teal #7dcfff) ---
+[python]
+symbol = " "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol($version )(\($virtualenv\) )]($style)'
+detect_extensions = ['py']
+detect_files = ['.python-version', 'Pipfile', 'requirements.txt', 'pyproject.toml']
+
+[package]
+symbol = "📦 "
+style = "bg:#e0af68 fg:#15161e bold"
+format = '[ $symbol$version ]($style)'
+display_private = false
+
+# --- Docker, Kubernetes, Terraform (Teal #7dcfff) ---
 [docker_context]
 symbol = " "
 style = "bg:#7dcfff fg:#15161e bold"
 format = '[ $symbol $context ]($style)'
+detect_files = ['docker-compose.yml', 'docker-compose.yaml', 'Dockerfile']
+only_with_files = true
 
+[kubernetes]
+symbol = "☸ "
+style = "bg:#89ddff fg:#15161e bold"
+format = '[ $symbol$context( \($namespace\)) ]($style)'
+disabled = false
+detect_files = ['k8s', 'Dockerfile', 'docker-compose.yml', 'helmfile.yaml']
+detect_folders = ['k8s', '.kube', 'kubernetes']
+
+[terraform]
+symbol = "💠 "
+style = "bg:#89ddff fg:#15161e bold"
+format = '[ $symbol$workspace ]($style)'
+detect_extensions = ['tf', 'tfplan', 'tfstate']
+detect_files = ['.terraform']
+
+# --- AWS/Azure/GCloud ---
+# Add after kubernetes/terraform:
+[aws]
+symbol = " "
+style = "bg:#ff9900 fg:#15161e bold"
+format = '[ $symbol($profile )(\($region\)) ]($style)'
+disabled = true  # Enable only if you use AWS
+
+[gcloud]
+symbol = "☁️ "
+style = "bg:#4285F4 fg:#15161e bold"
+format = '[ $symbol$account(@$domain)(\($region\)) ]($style)'
+disabled = true  # Enable only if you use GCP
+
+[azure]
+symbol = "󰠅 "
+style = "bg:#0078D4 fg:#15161e bold"
+format = '[ $symbol($subscription) ]($style)'
+disabled = true  # Enable only if you use Azure
 
 # --- System Info (Grey #414868) ---
 # Jobs, Cmd, and Battery share this background so they merge seamlessly
@@ -157,9 +231,20 @@ number_threshold = 1
 format = '[ $symbol$number ]($style)'
 
 [cmd_duration]
-min_time = 1000
+min_time = 2000
 style = "bg:#414868 fg:#c0caf5"
 format = "[ 󰔟 $duration ]($style)"
+
+[status]
+style = "bg:#414868 fg:#f7768e bold"
+format = '[$symbol$status]($style)'
+symbol = "✘ "
+disabled = false
+success_symbol = ""
+not_executable_symbol = "🚫 "
+not_found_symbol = "🔍 "
+sigint_symbol = "🧱 "
+signal_symbol = "⚡"
 
 # --- THE BATTERY TRICK ---
 [battery]
@@ -171,9 +256,9 @@ format = "[ $symbol$percentage ]($style)"
 [[battery.display]]
 threshold = 20
 style = "bg:#414868 fg:#f7768e bold"
-# Warning (< 50%) - Orange
+# Warning (< 45%) - Orange
 [[battery.display]]
-threshold = 40
+threshold = 45
 style = "bg:#414868 fg:#ff9e64 bold"
 # Healthy (The rest) - Blue/White
 [[battery.display]]
