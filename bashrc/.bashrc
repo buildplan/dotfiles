@@ -571,7 +571,7 @@ alias ltr='ls -alFhtr'     # Sort by modification time, oldest first
 alias lS='ls -alFhS'       # Sort by size, largest first
 
 # Last command with sudo
-alias please='sudo $(history -p !!)'
+alias please='eval sudo "$(history -p !!)"'
 
 # Safety aliases to prompt before overwriting.
 alias rm='rm -i'
@@ -628,7 +628,10 @@ alias pscpu='ps auxf | sort -nr -k 3 | head -10'
 alias top10='ps aux --sort=-%mem | head -n 11'
 
 # Quick network info.
-alias myip='curl -s ifconfig.me || curl -s icanhazip.com' # Alternatives: api.ipify.org, icanhazip.co
+# Get public IP with timeouts (3s), fallbacks, and newline formatting
+alias myip='curl -s --connect-timeout 3 ip.me || curl -s --connect-timeout 3 icanhazip.com || curl -s --connect-timeout 3 ifconfig.me; echo'
+alias myip4='curl -4 -s --connect-timeout 3 ip.me || curl -4 -s --connect-timeout 3 icanhazip.com || curl -4 -s --connect-timeout 3 ifconfig.me; echo'
+alias myip6='curl -6 -s --connect-timeout 3 ip.me || curl -6 -s --connect-timeout 3 icanhazip.com || curl -6 -s --connect-timeout 3 ifconfig.me; echo'
 # Show local IP address(es), excluding loopback.
 localip() {
     ip -4 addr | awk '/inet/ {print $2}' | cut -d/ -f1 | grep -v '127.0.0.1'
