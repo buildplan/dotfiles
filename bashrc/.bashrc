@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 # ===================================================================
-#   Universal Portable .bashrc for Modern Terminals
-#   Optimized for Debian/Ubuntu servers with multi-terminal support
-#   Last Updated: 2025-11-06
+#   Universal Portable .bashrc
+#   For Debian/Ubuntu servers with multi-terminal support
+#   Last Updated: 2025-12-16
 # ===================================================================
 
 # If not running interactively, don't do anything.
@@ -665,6 +665,7 @@ if command -v docker &>/dev/null; then
     alias d='docker'
     alias dps='docker ps'
     alias dpsa='docker ps -a'
+    alias dpsn='docker ps --format '{{.Names}}''
     alias dpsq='docker ps -q'
     alias di='docker images'
     alias dv='docker volume ls'
