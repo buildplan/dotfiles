@@ -578,6 +578,7 @@ alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
 alias ln='ln -i'
+alias mkdir='mkdir -p'
 
 # Convenience & Navigation aliases.
 alias ..='cd ..'
