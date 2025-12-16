@@ -666,7 +666,7 @@ if command -v docker &>/dev/null; then
     alias d='docker'
     alias dps='docker ps'
     alias dpsa='docker ps -a'
-    alias dpsn='docker ps --format '{{.Names}}''
+    alias dpsn="docker ps --format '{{.Names}}'"
     alias dpsq='docker ps -q'
     alias di='docker images'
     alias dv='docker volume ls'
