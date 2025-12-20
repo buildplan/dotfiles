@@ -160,12 +160,12 @@ __bash_prompt_command() {
 PROMPT_COMMAND=__bash_prompt_command
 
 # --- Editor Configuration ---
-if command -v vim &>/dev/null; then
-    export EDITOR=vim
-    export VISUAL=vim
-elif command -v nano &>/dev/null; then
+if command -v nano &>/dev/null; then
     export EDITOR=nano
     export VISUAL=nano
+elif command -v vim &>/dev/null; then
+    export EDITOR=vim
+    export VISUAL=vim
 else
     export EDITOR=vi
     export VISUAL=vi
