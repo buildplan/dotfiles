@@ -1,0 +1,119 @@
+#cloud-config
+
+# 1. System Updates
+package_update: true
+package_upgrade: true
+
+# 2. User Setup
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - SSH_PUBLIC_KEY_HERE
+
+# 3. Packages
+packages:
+  - git
+  - tmux
+  - fzf
+  - bat
+  - zoxide
+  - curl
+  - wget
+  - gpg
+  - ufw
+  - uidmap
+  - net-tools
+
+# 4. File Creation (Starship, Aliases, and MOTDs)
+write_files:
+  - path: /home/ubuntu/.config/starship.toml
+    owner: ubuntu:ubuntu
+    content: |
+      add_newline = true
+      scan_timeout = 30
+      command_timeout = 500
+      format = """[░▒▓](#7aa2f7)[  ](bg:#7aa2f7 fg:#15161e)[](fg:#7aa2f7 bg:#3b4261)$hostname$directory[](fg:#3b4261 bg:#292e42)$git_branch$git_status[](fg:#292e42 bg:#1f2335)$cmd_duration$nodejs$rust$golang$php$python$docker_context[](fg:#1f2335)\n$character"""
+      [hostname]
+      ssh_only = true
+      ssh_symbol = "🌐 "
+      style = "fg:#c0caf5 bg:#3b4261"
+      format = "[ $ssh_symbol$hostname ]($style)"
+      [directory]
+      style = "fg:#c0caf5 bg:#3b4261"
+      format = "[ $path$read_only ]($style)"
+      [character]
+      success_symbol = "[➜](bold #7aa2f7)"
+
+  - path: /home/ubuntu/.bash_aliases
+    owner: ubuntu:ubuntu
+    content: |
+      if [ -f /etc/bash_completion ]; then . /etc/bash_completion; fi
+      eval "$(starship init bash)"
+      eval "$(zoxide init bash)"
+      alias cd='z'
+      alias ls='eza --icons --git'
+      alias ll='eza -l --icons --git --group-directories-first --time-style=long-iso'
+      alias cat='batcat'
+      alias t='tmux'
+      alias rec='asciinema rec'
+      alias ports='nc -vz'
+
+  - path: /etc/motd
+    content: |
+      ╔═══════════════════════════════════════════════════════════════╗
+      ║                  ORACLE CLOUD ARM (UBUNTU)                    ║
+      ╚═══════════════════════════════════════════════════════════════╝
+      Quick Tips:
+      - Type 't' for Tmux, 'rec' for Asciinema.
+
+  - path: /etc/update-motd.d/99-server-info
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      IPV4_PRIVATE=$(hostname -I | awk '{print $1}')
+      IPV4_PUBLIC=$(curl -s --connect-timeout 2 https://ifconfig.me || echo "N/A")
+      IPV6_LOCAL=$(ip -6 addr show dev $(ip route | grep default | awk '{print $5}' | head -n 1) | grep -Po 'inet6 \K[\da-f:]+' | head -n 1)
+      printf "\n\e[1;32m[NETWORK INFO]\e[0m\n"
+      printf "Private IPv4: %s\n" "$IPV4_PRIVATE"
+      printf "Public  IPv4: \e[1;33m%s\e[0m\n" "$IPV4_PUBLIC"
+      if [ -n "$IPV6_LOCAL" ]; then printf "IPv6 address: %s\n" "$IPV6_LOCAL"; fi
+      printf "\n\e[1;34m[DOCKER STATUS]\e[0m\n"
+      if systemctl is-active --quiet docker; then
+          if [ "$(docker ps -a -q)" ]; then
+              docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          else
+              echo "No containers currently active."
+          fi
+      else
+          echo "Docker service is offline."
+      fi
+
+# 5. Commands and Installations
+runcmd:
+  # SSH Config
+  - sed -i 's/#Port 22/Port 5555/' /etc/ssh/sshd_config
+  - sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+  - systemctl restart ssh
+  - chmod -x /etc/update-motd.d/10-help-text /etc/update-motd.d/50-motd-news /etc/update-motd.d/80-livepatch
+
+  # Tooling
+  - mkdir -p /etc/apt/keyrings
+  - wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
+  - echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | tee /etc/apt/sources.list.d/gierens.list
+  - apt update && apt install -y eza
+  - curl -sS https://starship.rs/install.sh | sh -s -- -y
+  - wget https://github.com/asciinema/asciinema/releases/download/v3.0.1/asciinema-aarch64-unknown-linux-gnu -O /usr/local/bin/asciinema
+  - chmod +x /usr/local/bin/asciinema
+
+  # Docker & Tailscale
+  - curl -fsSL https://get.docker.com | sh
+  - usermod -aG docker ubuntu
+  - curl -fsSL https://tailscale.com/install.sh | sh
+
+  # Firewall
+  - ufw allow 5555/tcp
+  - ufw --force enable
+  - iptables -I INPUT 6 -p tcp --dport 5555 -j ACCEPT
+  - netfilter-persistent save
